@@ -59,35 +59,39 @@ public static class PropagationEngine
 
     private static TimeBlock GetTimeBlock(DateTime utc, double lat, double lon)
     {
-        var (sunrise, sunset) = GetSunriseSunset(utc.Date, lat, lon);
-        var hour = utc.TimeOfDay;
+        // Work in solar offset from solar noon to avoid UTC midnight-crossing bugs.
+        // solarOffset = 0 at noon, negative = AM, positive = PM.
+        var (noon, ha) = GetSolarNoonAndHalfDay(utc.Date, lat, lon);
 
-        if (hour < sunrise.Subtract(TimeSpan.FromHours(1)))    return TimeBlock.Night;
-        if (hour < sunrise)                                     return TimeBlock.PreSunrise;
-        if (hour < sunrise.Add(TimeSpan.FromHours(4)))         return TimeBlock.Morning;
-        if (hour < sunset.Subtract(TimeSpan.FromHours(3)))     return TimeBlock.Midday;
-        if (hour < sunset)                                      return TimeBlock.Afternoon;
-        if (hour < sunset.Add(TimeSpan.FromHours(1.5)))        return TimeBlock.PostSunset;
+        double hour   = utc.Hour + utc.Minute / 60.0 + utc.Second / 3600.0;
+        double offset = hour - noon;
+        // Normalize to [-12, 12]
+        if (offset >  12) offset -= 24;
+        if (offset < -12) offset += 24;
+
+        double sunrise = -ha;   // hours before noon
+        double sunset  =  ha;   // hours after noon
+
+        if (offset < sunrise - 1)    return TimeBlock.Night;
+        if (offset < sunrise)        return TimeBlock.PreSunrise;
+        if (offset < sunrise + 4)    return TimeBlock.Morning;
+        if (offset < sunset  - 3)    return TimeBlock.Midday;
+        if (offset < sunset)         return TimeBlock.Afternoon;
+        if (offset < sunset  + 1.5)  return TimeBlock.PostSunset;
         return TimeBlock.Night;
     }
 
-    // Simplified solar position calculation (SunCalc port)
-    private static (TimeSpan Sunrise, TimeSpan Sunset) GetSunriseSunset(DateTime date, double lat, double lon)
+    // Returns UTC hour of solar noon and half-daylight-length in hours.
+    private static (double Noon, double HalfDay) GetSolarNoonAndHalfDay(DateTime date, double lat, double lon)
     {
         const double Deg2Rad = Math.PI / 180;
         int doy = date.DayOfYear;
-        double b = (360.0 / 365) * (doy - 81) * Deg2Rad;
-        double et = 9.87 * Math.Sin(2 * b) - 7.53 * Math.Cos(b) - 1.5 * Math.Sin(b);
+        double b   = (360.0 / 365) * (doy - 81) * Deg2Rad;
+        double et  = 9.87 * Math.Sin(2 * b) - 7.53 * Math.Cos(b) - 1.5 * Math.Sin(b);
         double dec = 23.45 * Math.Sin(b) * Deg2Rad;
-        double ha = Math.Acos(-Math.Tan(lat * Deg2Rad) * Math.Tan(dec)) / Deg2Rad;
-        double noon = 12 - lon / 15 - et / 60;
-        double sunriseHr = noon - ha / 15;
-        double sunsetHr  = noon + ha / 15;
-
-        sunriseHr = ((sunriseHr % 24) + 24) % 24;
-        sunsetHr  = ((sunsetHr  % 24) + 24) % 24;
-
-        return (TimeSpan.FromHours(sunriseHr), TimeSpan.FromHours(sunsetHr));
+        double ha  = Math.Acos(Math.Clamp(-Math.Tan(lat * Deg2Rad) * Math.Tan(dec), -1, 1)) / Deg2Rad;
+        double noon = 12.0 - lon / 15.0 - et / 60.0;
+        return (noon, ha / 15.0);
     }
 
     // ── Band Scoring ──────────────────────────────────────────────────────────

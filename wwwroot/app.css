@@ -17,8 +17,8 @@
     --nav-height:    64px;
     --safe-bottom:   env(safe-area-inset-bottom, 0px);
 
-    --excellent: #2ecc71;
-    --good:      #27ae60;
+    --excellent: #00d2d3;
+    --good:      #2ecc71;
     --fair:      #f39c12;
     --poor:      #e74c3c;
     --closed:    #444;
@@ -218,8 +218,8 @@ a { color: var(--accent); text-decoration: none; cursor: pointer; }
     letter-spacing: 0.5px;
 }
 
-.condition-badge.condition-excellent { background: rgba(46,204,113,.2);  color: var(--excellent); }
-.condition-badge.condition-good      { background: rgba(39,174,96,.2);   color: var(--good); }
+.condition-badge.condition-excellent { background: rgba(0,210,211,.2);   color: var(--excellent); }
+.condition-badge.condition-good      { background: rgba(46,204,113,.2);  color: var(--good); }
 .condition-badge.condition-fair      { background: rgba(243,156,18,.2);  color: var(--fair); }
 .condition-badge.condition-poor      { background: rgba(231,76,60,.2);   color: var(--poor); }
 .condition-badge.condition-storm     { background: rgba(231,76,60,.3);   color: #ff6b6b; }
@@ -271,7 +271,7 @@ a { color: var(--accent); text-decoration: none; cursor: pointer; }
 .band-regions { font-size: 10px; color: var(--accent); font-weight: 600; }
 .band-mode { font-size: 10px; color: var(--text-dim); }
 
-.rating-excellent { border-top-color: var(--excellent) !important; }
+.rating-excellent { border-top-color: var(--excellent) !important; background: rgba(0, 210, 211, 0.06); }
 .rating-excellent .band-rating-label, .rating-excellent .band-rating-icon { color: var(--excellent); }
 
 .rating-good { border-top-color: var(--good) !important; }
@@ -529,6 +529,44 @@ a { color: var(--accent); text-decoration: none; cursor: pointer; }
 .alert-time { font-size: 11px; color: var(--text-dim); }
 .alert-product { font-size: 11px; color: var(--text-secondary); margin-bottom: 4px; }
 .alert-body { font-size: 12px; line-height: 1.5; white-space: pre-wrap; }
+
+.alert-ham-impact {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 6px 0 4px;
+    line-height: 1.4;
+}
+
+.alert-summary {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin-bottom: 8px;
+}
+
+.alert-expand-btn {
+    background: none;
+    border: none;
+    color: var(--accent-dim);
+    font-size: 11px;
+    cursor: pointer;
+    padding: 0;
+    margin-bottom: 4px;
+}
+
+.alert-full-text {
+    font-size: 11px;
+    color: var(--text-dim);
+    white-space: pre-wrap;
+    word-break: break-word;
+    background: var(--bg-base);
+    border-radius: 6px;
+    padding: 10px;
+    margin-top: 8px;
+    line-height: 1.5;
+    overflow-x: auto;
+}
 
 /* ── Settings Form ────────────────────────────────────────────── */
 .settings-form { display: flex; flex-direction: column; gap: 4px; }
@@ -952,6 +990,18 @@ a { color: var(--accent); text-decoration: none; cursor: pointer; }
     padding: 12px 0;
 }
 
+.news-list-scroll {
+    max-height: 480px;
+    overflow-y: auto;
+    margin-bottom: 4px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--bg-card-hover) transparent;
+}
+
+.news-list-scroll::-webkit-scrollbar { width: 4px; }
+.news-list-scroll::-webkit-scrollbar-track { background: transparent; }
+.news-list-scroll::-webkit-scrollbar-thumb { background: var(--bg-card-hover); border-radius: 2px; }
+
 .news-list { display: flex; flex-direction: column; gap: 2px; margin-bottom: 8px; }
 
 .news-item {
@@ -1016,3 +1066,57 @@ a { color: var(--accent); text-decoration: none; cursor: pointer; }
 }
 
 .news-score { color: var(--accent-dim); }
+
+.news-item-dated {
+    border-left: 3px solid var(--accent-dim);
+    padding-left: 11px;
+}
+
+.news-daterange {
+    font-size: 10px;
+    color: var(--accent);
+    background: rgba(232, 162, 46, 0.12);
+    padding: 1px 6px;
+    border-radius: 8px;
+    font-weight: 600;
+}
+
+.dx-date-chips {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 14px;
+    margin-bottom: 4px;
+}
+
+.dx-date-chips-icon {
+    color: var(--text-dim);
+    flex-shrink: 0;
+}
+
+.dx-date-chip {
+    background: var(--bg-card);
+    border: 1px solid rgba(232, 162, 46, 0.25);
+    border-radius: 10px;
+    padding: 4px 10px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1px;
+    transition: border-color 0.15s;
+}
+
+.dx-date-chip:active { border-color: var(--accent); }
+
+.dx-chip-title {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.dx-chip-date {
+    font-size: 10px;
+    color: var(--accent);
+}

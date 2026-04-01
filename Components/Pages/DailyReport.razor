@@ -4,7 +4,6 @@
 @inject SettingsService SettingsSvc
 @inject SolarWeatherService SolarService
 @inject SatelliteService SatService
-@inject DailyReportService ReportService
 @inject NavigationManager Nav
 
 <div class="page-header">
@@ -79,88 +78,6 @@
     </div>
 </div>
 
-<!-- ── Daily Briefing (collapsible) ─────────────────────────── -->
-@if (settings.DailyReportEnabled && report is not null)
-{
-    <div class="collapsible-header" @onclick="() => showBriefing = !showBriefing">
-        <h2>Daily Briefing</h2>
-        <span class="collapse-chevron">@(showBriefing ? "▲" : "▼")</span>
-    </div>
-
-    @if (showBriefing)
-    {
-        @if (!string.IsNullOrEmpty(report.MotivationalPhrase))
-        {
-            <div class="report-phrase-card">
-                <div class="report-phrase-text">@report.MotivationalPhrase</div>
-            </div>
-        }
-
-        @if (report.HasBandHighlights)
-        {
-            <div class="report-band-list">
-                @foreach (var b in report.BandHighlights)
-                {
-                    <div class="report-band-item @b.Rating.ToCssClass()">
-                        <div class="report-band-name">@b.Band</div>
-                        <div class="report-band-body">
-                            <div class="report-band-message">@b.Message</div>
-                            @if (b.GoodRegions.Count > 0)
-                            {
-                                <div class="report-band-regions">@string.Join(" · ", b.GoodRegions)</div>
-                            }
-                            @if (!string.IsNullOrEmpty(b.BestMode))
-                            {
-                                <div class="report-band-mode">@b.BestMode</div>
-                            }
-                        </div>
-                        <div class="report-band-rating">@b.Rating.ToIcon()</div>
-                    </div>
-                }
-            </div>
-        }
-        else
-        {
-            <div class="report-quiet-bands">
-                Bands are quiet right now — a good time to get the antenna ready for the next opening.
-            </div>
-        }
-
-        <div class="report-weather-card">@report.WeatherSummary</div>
-    }
-}
-
-<!-- ── Upcoming Passes (collapsible) ────────────────────────── -->
-@if (settings!.SatellitesEnabled && settings.IsConfigured && passes.Count > 0)
-{
-    var visiblePasses = passes.Where(p => p.IsUpcoming).OrderBy(p => p.AosTime).ToList();
-
-    <div class="collapsible-header" @onclick="() => showPasses = !showPasses">
-        <h2>Upcoming Passes</h2>
-        <span class="collapse-chevron">@(showPasses ? "▲" : "▼")</span>
-    </div>
-
-    @if (showPasses)
-    {
-        <div class="report-pass-list">
-            @foreach (var p in visiblePasses.Take(passLimit))
-            {
-                <div class="report-pass-item">
-                    <div class="report-pass-sat">@p.SatelliteName</div>
-                    <div class="report-pass-desc">@p.AosTimeLocal → @p.LosTimeLocal · @p.AosDirection to @p.LosDirection</div>
-                    <div class="report-pass-badge @p.PassQualityCss">@p.PassQuality · @p.MaxElevationStr</div>
-                </div>
-            }
-        </div>
-        @if (visiblePasses.Count > passLimit)
-        {
-            <button class="btn-ghost show-more-btn" @onclick="() => passLimit += 5">
-                Show more (@(visiblePasses.Count - passLimit) remaining)
-            </button>
-        }
-    }
-}
-
 <!-- ── Band Conditions (collapsible) ────────────────────────── -->
 <div class="collapsible-header" @onclick="() => showBands = !showBands">
     <h2>Band Conditions</h2>
@@ -196,6 +113,37 @@
         <div class="loading-grid">
             @for (int i = 0; i < 9; i++) { <div class="band-card skeleton"></div> }
         </div>
+    }
+}
+
+<!-- ── Upcoming Passes (collapsible) ────────────────────────── -->
+@if (settings!.SatellitesEnabled && settings.IsConfigured && passes.Count > 0)
+{
+    var visiblePasses = passes.Where(p => p.IsUpcoming).OrderBy(p => p.AosTime).ToList();
+
+    <div class="collapsible-header" @onclick="() => showPasses = !showPasses">
+        <h2>Upcoming Passes</h2>
+        <span class="collapse-chevron">@(showPasses ? "▲" : "▼")</span>
+    </div>
+
+    @if (showPasses)
+    {
+        <div class="report-pass-list">
+            @foreach (var p in visiblePasses.Take(passLimit))
+            {
+                <div class="report-pass-item">
+                    <div class="report-pass-sat">@p.SatelliteName</div>
+                    <div class="report-pass-desc">@p.AosTimeLocal → @p.LosTimeLocal · @p.AosDirection to @p.LosDirection</div>
+                    <div class="report-pass-badge @p.PassQualityCss">@p.PassQuality · @p.MaxElevationStr</div>
+                </div>
+            }
+        </div>
+        @if (visiblePasses.Count > passLimit)
+        {
+            <button class="btn-ghost show-more-btn" @onclick="() => passLimit += 5">
+                Show more (@(visiblePasses.Count - passLimit) remaining)
+            </button>
+        }
     }
 }
 
@@ -241,13 +189,11 @@
     private List<BandCondition> bands = [];
     private List<SpaceWeatherAlert> alerts = [];
     private Dictionary<string, List<BandForecast>> forecastByDay = [];
-    private GRRadio.Models.DailyReport? report;
     private List<SatellitePass> passes = [];
     private int passLimit = 5;
     private bool loading = true;
     private string errorMessage = "";
 
-    private bool showBriefing = true;
     private bool showPasses   = true;
     private bool showBands    = true;
     private bool showForecast = true;
@@ -318,8 +264,6 @@
                     }
                 }
 
-                if (settings.DailyReportEnabled)
-                    report = await ReportService.GenerateAsync(settings, solar, bands, passes);
             }
         }
         catch (Exception ex)
