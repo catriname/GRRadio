@@ -90,6 +90,30 @@
         }
     </div>
 
+    <!-- News Settings -->
+    <div class="settings-section">
+        <h3 class="settings-section-title">News</h3>
+        <div class="form-group">
+            <label class="form-label">Subreddits</label>
+            <div class="watchlist">
+                @foreach (var sub in newsSubreddits)
+                {
+                    <div class="watchlist-item">
+                        <span>r/@sub</span>
+                        <button class="watchlist-remove" @onclick="() => RemoveSub(sub)">✕</button>
+                    </div>
+                }
+            </div>
+            <div class="watchlist-add">
+                <input class="form-input" type="text"
+                       placeholder="subreddit name (no r/)"
+                       @bind="newSubName"
+                       @onkeyup="OnSubKeyUp" />
+                <button class="btn-secondary" @onclick="AddSub">Add</button>
+            </div>
+        </div>
+    </div>
+
     <!-- App Settings -->
     <div class="settings-section">
         <h3 class="settings-section-title">App</h3>
@@ -135,11 +159,13 @@
     private string gridSquare = "";
     private int minElevation = 10;
     private List<string> watchlist = [];
+    private List<string> newsSubreddits = [];
     private bool alertsEnabled = true;
     private bool darkMode = true;
     private bool dailyReportEnabled = false;
     private bool satellitesEnabled = false;
     private string newSatName = "";
+    private string newSubName = "";
     private string locationMessage = "";
     private string saveMessage = "";
     private bool saveSuccess = false;
@@ -150,7 +176,8 @@
         callsign     = s.Callsign;
         gridSquare   = s.GridSquare;
         minElevation = s.MinSatElevation;
-        watchlist    = [.. s.SatelliteWatchlist];
+        watchlist        = [.. s.SatelliteWatchlist];
+        newsSubreddits   = [.. s.NewsSubreddits];
         alertsEnabled       = s.AlertsEnabled;
         darkMode            = s.DarkMode;
         dailyReportEnabled  = s.DailyReportEnabled;
@@ -183,6 +210,7 @@
             Longitude          = lon,
             MinSatElevation    = minElevation,
             SatelliteWatchlist = watchlist,
+            NewsSubreddits     = newsSubreddits,
             AlertsEnabled       = alertsEnabled,
             DarkMode            = darkMode,
             DailyReportEnabled  = dailyReportEnabled,
@@ -235,6 +263,23 @@
     private void OnSatKeyUp(KeyboardEventArgs e)
     {
         if (e.Key == "Enter") AddSat();
+    }
+
+    private void AddSub()
+    {
+        var name = newSubName.Trim().ToLowerInvariant().TrimStart('/').Replace("r/", "");
+        if (!string.IsNullOrEmpty(name) && !newsSubreddits.Contains(name))
+        {
+            newsSubreddits.Add(name);
+            newSubName = "";
+        }
+    }
+
+    private void RemoveSub(string sub) => newsSubreddits.Remove(sub);
+
+    private void OnSubKeyUp(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") AddSub();
     }
 
     private void Cancel() => Nav.NavigateTo("/");

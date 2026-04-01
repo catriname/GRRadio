@@ -21,6 +21,11 @@ public static class MauiProgram
 		builder.Services.AddSingleton<SettingsService>();
 		builder.Services.AddSingleton<PhraseService>();
 		builder.Services.AddSingleton<DailyReportService>();
+		builder.Services.AddHttpClient<NewsService>(client =>
+		{
+			client.DefaultRequestHeaders.Add("User-Agent", "GRRadio/1.0 (ham radio news aggregator; by amateur radio operator)");
+			client.Timeout = TimeSpan.FromSeconds(15);
+		});
 		builder.Services.AddHttpClient<SolarWeatherService>(client =>
 		{
 			client.DefaultRequestHeaders.Add("User-Agent", "GRRadio/1.0 (ham radio propagation app)");
