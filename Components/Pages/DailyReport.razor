@@ -89,9 +89,12 @@
 
     @if (showBriefing)
     {
-        <div class="report-phrase-card">
-            <div class="report-phrase-text">@report.MotivationalPhrase</div>
-        </div>
+        @if (!string.IsNullOrEmpty(report.MotivationalPhrase))
+        {
+            <div class="report-phrase-card">
+                <div class="report-phrase-text">@report.MotivationalPhrase</div>
+            </div>
+        }
 
         @if (report.HasBandHighlights)
         {
@@ -123,21 +126,30 @@
             </div>
         }
 
-        @if (report.HasUpcomingPasses)
-        {
-            <div class="report-pass-list" style="margin-top: 12px;">
-                @foreach (var p in report.UpcomingPasses)
-                {
-                    <div class="report-pass-item">
-                        <div class="report-pass-sat">@p.SatelliteName</div>
-                        <div class="report-pass-desc">@p.Description</div>
-                        <div class="report-pass-badge @p.PassQualityCss">@p.PassQuality</div>
-                    </div>
-                }
-            </div>
-        }
-
         <div class="report-weather-card">@report.WeatherSummary</div>
+    }
+}
+
+<!-- ── Upcoming Passes (collapsible) ────────────────────────── -->
+@if (settings!.IsConfigured && passes.Count > 0)
+{
+    <div class="collapsible-header" @onclick="() => showPasses = !showPasses">
+        <h2>Upcoming Passes</h2>
+        <span class="collapse-chevron">@(showPasses ? "▲" : "▼")</span>
+    </div>
+
+    @if (showPasses)
+    {
+        <div class="report-pass-list">
+            @foreach (var p in passes.Where(p => p.IsUpcoming).OrderBy(p => p.AosTime).Take(5))
+            {
+                <div class="report-pass-item">
+                    <div class="report-pass-sat">@p.SatelliteName</div>
+                    <div class="report-pass-desc">@p.AosTimeLocal → @p.LosTimeLocal · @p.AosDirection to @p.LosDirection</div>
+                    <div class="report-pass-badge @p.PassQualityCss">@p.PassQuality · @p.MaxElevationStr</div>
+                </div>
+            }
+        </div>
     }
 }
 
@@ -222,10 +234,12 @@
     private List<SpaceWeatherAlert> alerts = [];
     private Dictionary<string, List<BandForecast>> forecastByDay = [];
     private GRRadio.Models.DailyReport? report;
+    private List<SatellitePass> passes = [];
     private bool loading = true;
     private string errorMessage = "";
 
     private bool showBriefing = true;
+    private bool showPasses   = true;
     private bool showBands    = true;
     private bool showForecast = false;
 
@@ -270,8 +284,6 @@
             solar  = solarTask.Result;
             alerts = alertsTask.Result;
 
-            List<SatellitePass> passes = [];
-
             if (settings.IsConfigured)
             {
                 var (lat, lon) = SettingsService.MaidenheadToLatLon(settings.GridSquare);
@@ -282,21 +294,19 @@
                     .GroupBy(f => f.Hour.ToLocalTime().ToString("ddd, MMM d"))
                     .ToDictionary(g => g.Key, g => g.ToList());
 
-                if (settings.DailyReportEnabled)
+                try
                 {
-                    try
-                    {
-                        passes = await SatService.GetPassesAsync(
-                            settings.SatelliteWatchlist, lat, lon,
-                            altKm: 0, minElevDeg: settings.MinSatElevation, hoursAhead: 12);
-                    }
-                    catch
-                    {
-                        errorMessage = "Satellite pass data unavailable.";
-                    }
-
-                    report = await ReportService.GenerateAsync(settings, solar, bands, passes);
+                    passes = await SatService.GetPassesAsync(
+                        settings.SatelliteWatchlist, lat, lon,
+                        altKm: 0, minElevDeg: settings.MinSatElevation, hoursAhead: 12);
                 }
+                catch
+                {
+                    errorMessage = "Satellite pass data unavailable.";
+                }
+
+                if (settings.DailyReportEnabled)
+                    report = await ReportService.GenerateAsync(settings, solar, bands, passes);
             }
         }
         catch (Exception ex)
