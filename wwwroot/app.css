@@ -888,3 +888,24 @@ a { color: var(--accent); text-decoration: none; cursor: pointer; }
 }
 
 .back-btn { padding: 4px 0; font-size: 14px; }
+
+/* ── Collapsible Sections ─────────────────────────────────────── */
+.collapsible-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 16px 0 10px;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.collapsible-header h2 { font-size: 16px; font-weight: 700; }
+
+.collapse-chevron {
+    font-size: 11px;
+    color: var(--text-dim);
+    transition: color 0.15s;
+}
+
+.collapsible-header:hover .collapse-chevron { color: var(--accent); }

@@ -1,4 +1,4 @@
-@page "/daily-report"
+@page "/"
 @using GRRadio.Models
 @using GRRadio.Services
 @inject SettingsService SettingsSvc
@@ -8,136 +8,232 @@
 @inject NavigationManager Nav
 
 <div class="page-header">
-    <h1>Daily Report</h1>
-    <button class="refresh-btn" @onclick="GenerateReport" disabled="@loading">
+    <div class="page-title">
+        <span class="callsign">@(settings?.Callsign is { Length: > 0 } c ? c : "GRRadio")</span>
+        <span class="grid-badge">@(settings?.GridSquare is { Length: > 0 } g ? g : "Set Grid")</span>
+    </div>
+    <button class="refresh-btn" @onclick="LoadDataAsync" disabled="@loading">
         @if (loading) { <span class="spinner">⟳</span> } else { <span>⟳</span> }
     </button>
 </div>
 
-@if (!settings!.DailyReportEnabled)
+@if (!settings!.IsConfigured)
 {
-    <div class="report-disabled-card">
-        <div class="report-disabled-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/>
-                <line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
-                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/>
-                <line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
-                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-            </svg>
+    <div class="alert-card alert-warn">
+        <strong>Setup required</strong> — enter your callsign and grid square in
+        <a @onclick='() => Nav.NavigateTo("/settings")' class="link">Settings</a>.
+    </div>
+}
+
+<!-- Solar Bar (always visible) -->
+@if (solar is not null)
+{
+    <div class="solar-bar condition-@solar.OverallCondition.ToString().ToLower()">
+        <div class="solar-metric">
+            <span class="metric-label">SFI</span>
+            <span class="metric-value">@solar.SolarFluxIndex.ToString("F0")</span>
         </div>
-        <p>Daily Report is turned off.</p>
-        <button class="btn-secondary" @onclick='() => Nav.NavigateTo("/settings")'>
-            Enable in Settings
-        </button>
+        <div class="solar-metric">
+            <span class="metric-label">Kp</span>
+            <span class="metric-value">@solar.KIndex.ToString("F1")</span>
+        </div>
+        <div class="solar-metric">
+            <span class="metric-label">Wind</span>
+            <span class="metric-value">@solar.SolarWindSpeed.ToString("F0") km/s</span>
+        </div>
+        <div class="solar-metric">
+            <span class="metric-label">Bz</span>
+            <span class="metric-value @(solar.BzComponent < -5 ? "bz-south" : "bz-north")">@solar.BzComponent.ToString("F1")</span>
+        </div>
+        <div class="solar-status">
+            <span class="condition-badge condition-@solar.OverallCondition.ToString().ToLower()">
+                @solar.OverallCondition
+            </span>
+        </div>
     </div>
 }
-else if (loading)
+
+<!-- Alerts Strip -->
+@if (alerts.Count > 0)
 {
-    <div class="report-loading">
-        <div class="spinner-large">⟳</div>
-        <p>Gathering your report…</p>
+    <div class="alerts-strip">
+        @foreach (var alert in alerts.Take(3))
+        {
+            <div class="alert-pill severity-@alert.Severity.ToString().ToLower()">
+                ⚠ @alert.ShortMessage
+            </div>
+        }
+        @if (alerts.Count > 3)
+        {
+            <a @onclick='() => Nav.NavigateTo("/alerts")' class="alert-pill alert-more">
+                +@(alerts.Count - 3) more →
+            </a>
+        }
     </div>
 }
-else if (report is not null)
+
+<!-- ── Daily Briefing (collapsible) ─────────────────────────── -->
+@if (settings.DailyReportEnabled && report is not null)
 {
-    <!-- Greeting -->
-    <div class="report-greeting">
-        <div class="report-greeting-text">@report.Greeting</div>
-        <div class="report-generated-at">@report.GeneratedAtLabel</div>
+    <div class="collapsible-header" @onclick="() => showBriefing = !showBriefing">
+        <h2>Daily Briefing</h2>
+        <span class="collapse-chevron">@(showBriefing ? "▲" : "▼")</span>
     </div>
 
-    <!-- Motivational Phrase -->
-    <div class="report-phrase-card">
-        <div class="report-phrase-text">@report.MotivationalPhrase</div>
-    </div>
-
-    <!-- Band Highlights -->
-    @if (report.HasBandHighlights)
+    @if (showBriefing)
     {
-        <div class="section-header">
-            <h2>On the Air</h2>
-            <span class="section-sub">Good or better conditions</span>
+        <div class="report-greeting">
+            <div class="report-greeting-text">@report.Greeting</div>
+            <div class="report-generated-at">@report.GeneratedAtLabel</div>
         </div>
 
-        <div class="report-band-list">
-            @foreach (var b in report.BandHighlights)
-            {
-                <div class="report-band-item @b.Rating.ToCssClass()">
-                    <div class="report-band-name">@b.Band</div>
-                    <div class="report-band-body">
-                        <div class="report-band-message">@b.Message</div>
-                        @if (b.GoodRegions.Count > 0)
-                        {
-                            <div class="report-band-regions">@string.Join(" · ", b.GoodRegions)</div>
-                        }
-                        @if (!string.IsNullOrEmpty(b.BestMode))
-                        {
-                            <div class="report-band-mode">@b.BestMode</div>
-                        }
+        <div class="report-phrase-card">
+            <div class="report-phrase-text">@report.MotivationalPhrase</div>
+        </div>
+
+        @if (report.HasBandHighlights)
+        {
+            <div class="report-band-list">
+                @foreach (var b in report.BandHighlights)
+                {
+                    <div class="report-band-item @b.Rating.ToCssClass()">
+                        <div class="report-band-name">@b.Band</div>
+                        <div class="report-band-body">
+                            <div class="report-band-message">@b.Message</div>
+                            @if (b.GoodRegions.Count > 0)
+                            {
+                                <div class="report-band-regions">@string.Join(" · ", b.GoodRegions)</div>
+                            }
+                            @if (!string.IsNullOrEmpty(b.BestMode))
+                            {
+                                <div class="report-band-mode">@b.BestMode</div>
+                            }
+                        </div>
+                        <div class="report-band-rating">@b.Rating.ToIcon()</div>
                     </div>
-                    <div class="report-band-rating">@b.Rating.ToIcon()</div>
-                </div>
-            }
-        </div>
-    }
-    else
-    {
-        <div class="report-quiet-bands">
-            <p>Bands are quiet right now — a good time to get the antenna ready for the next opening.</p>
-        </div>
-    }
+                }
+            </div>
+        }
+        else
+        {
+            <div class="report-quiet-bands">
+                Bands are quiet right now — a good time to get the antenna ready for the next opening.
+            </div>
+        }
 
-    <!-- Upcoming Passes -->
-    @if (report.HasUpcomingPasses)
-    {
-        <div class="section-header">
-            <h2>Next Passes</h2>
-            <span class="section-sub">Next 12 hours</span>
-        </div>
+        @if (report.HasUpcomingPasses)
+        {
+            <div class="report-pass-list" style="margin-top: 12px;">
+                @foreach (var p in report.UpcomingPasses)
+                {
+                    <div class="report-pass-item">
+                        <div class="report-pass-sat">@p.SatelliteName</div>
+                        <div class="report-pass-desc">@p.Description</div>
+                        <div class="report-pass-badge @p.PassQualityCss">@p.PassQuality</div>
+                    </div>
+                }
+            </div>
+        }
 
-        <div class="report-pass-list">
-            @foreach (var p in report.UpcomingPasses)
+        <div class="report-weather-card">@report.WeatherSummary</div>
+    }
+}
+
+<!-- ── Band Conditions (collapsible) ────────────────────────── -->
+<div class="collapsible-header" @onclick="() => showBands = !showBands">
+    <h2>Band Conditions</h2>
+    <span class="collapse-chevron">@(showBands ? "▲" : "▼")</span>
+</div>
+
+@if (showBands)
+{
+    @if (bands.Count > 0)
+    {
+        <div class="band-grid">
+            @foreach (var band in bands)
             {
-                <div class="report-pass-item">
-                    <div class="report-pass-sat">@p.SatelliteName</div>
-                    <div class="report-pass-desc">@p.Description</div>
-                    <div class="report-pass-badge @p.PassQualityCss">@p.PassQuality</div>
+                <div class="band-card @band.Rating.ToCssClass()">
+                    <div class="band-name">@band.Band</div>
+                    <div class="band-rating-icon">@band.Rating.ToIcon()</div>
+                    <div class="band-rating-label">@band.Rating.ToLabel()</div>
+                    <div class="band-summary">@band.Summary</div>
+                    @if (band.GoodRegions.Count > 0)
+                    {
+                        <div class="band-regions">@string.Join(" · ", band.GoodRegions)</div>
+                    }
+                    @if (!string.IsNullOrEmpty(band.BestMode))
+                    {
+                        <div class="band-mode">@band.BestMode</div>
+                    }
                 </div>
             }
         </div>
     }
-
-    <!-- Space Weather -->
-    <div class="section-header">
-        <h2>Space Weather</h2>
-    </div>
-    <div class="report-weather-card">
-        <p>@report.WeatherSummary</p>
-    </div>
-
-    @if (!string.IsNullOrEmpty(errorMessage))
+    else if (loading)
     {
-        <div class="alert-card alert-warn">@errorMessage</div>
+        <div class="loading-grid">
+            @for (int i = 0; i < 9; i++) { <div class="band-card skeleton"></div> }
+        </div>
     }
+}
+
+<!-- ── 3-Day Forecast (collapsible) ─────────────────────────── -->
+@if (forecastByDay.Count > 0)
+{
+    <div class="collapsible-header" @onclick="() => showForecast = !showForecast">
+        <h2>3-Day Forecast</h2>
+        <span class="collapse-chevron">@(showForecast ? "▲" : "▼")</span>
+    </div>
+
+    @if (showForecast)
+    {
+        @foreach (var (day, slots) in forecastByDay)
+        {
+            <div class="forecast-day">
+                <div class="forecast-day-label">@day</div>
+                <div class="forecast-slots">
+                    @foreach (var slot in slots)
+                    {
+                        var best = slot.Conditions.MaxBy(c => (int)c.Rating);
+                        <div class="forecast-slot @(best?.Rating.ToCssClass() ?? "rating-closed")
+                                                 @(slot.Hour < DateTime.UtcNow ? "past" : "")">
+                            <div class="slot-time">@slot.Hour.ToLocalTime().ToString("HH")</div>
+                            <div class="slot-band">@(best?.Band ?? "—")</div>
+                            <div class="slot-icon">@(best?.Rating.ToIcon() ?? "✕")</div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    }
+}
+
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert-card alert-error">@errorMessage</div>
 }
 
 @code {
     private UserSettings? settings;
+    private SolarData? solar;
+    private List<BandCondition> bands = [];
+    private List<SpaceWeatherAlert> alerts = [];
+    private Dictionary<string, List<BandForecast>> forecastByDay = [];
     private GRRadio.Models.DailyReport? report;
     private bool loading = true;
     private string errorMessage = "";
 
+    private bool showBriefing = true;
+    private bool showBands    = true;
+    private bool showForecast = false;
+
     protected override async Task OnInitializedAsync()
     {
         settings = SettingsSvc.Load();
-        if (settings.DailyReportEnabled)
-            await GenerateReport();
-        else
-            loading = false;
+        await LoadDataAsync();
     }
 
-    private async Task GenerateReport()
+    private async Task LoadDataAsync()
     {
         loading = true;
         errorMessage = "";
@@ -146,37 +242,48 @@ else if (report is not null)
         try
         {
             settings = SettingsSvc.Load();
+
             var solarTask  = SolarService.GetCurrentAsync();
             var alertsTask = SolarService.GetAlertsAsync();
+            var fcastTask  = SolarService.GetForecastAsync();
 
-            List<BandCondition> bands = [];
+            await Task.WhenAll(solarTask, alertsTask, fcastTask);
+
+            solar  = solarTask.Result;
+            alerts = alertsTask.Result;
+
             List<SatellitePass> passes = [];
-
-            await Task.WhenAll(solarTask, alertsTask);
-            var solar = solarTask.Result;
 
             if (settings.IsConfigured)
             {
                 var (lat, lon) = SettingsService.MaidenheadToLatLon(settings.GridSquare);
                 bands = PropagationEngine.Evaluate(solar, DateTime.UtcNow, lat, lon);
 
-                try
+                var rawForecast = PropagationEngine.BuildForecast(fcastTask.Result, lat, lon);
+                forecastByDay = rawForecast
+                    .GroupBy(f => f.Hour.ToLocalTime().ToString("ddd, MMM d"))
+                    .ToDictionary(g => g.Key, g => g.ToList());
+
+                if (settings.DailyReportEnabled)
                 {
-                    passes = await SatService.GetPassesAsync(
-                        settings.SatelliteWatchlist, lat, lon,
-                        altKm: 0, minElevDeg: settings.MinSatElevation, hoursAhead: 12);
-                }
-                catch
-                {
-                    errorMessage = "Satellite pass data unavailable — band conditions shown.";
+                    try
+                    {
+                        passes = await SatService.GetPassesAsync(
+                            settings.SatelliteWatchlist, lat, lon,
+                            altKm: 0, minElevDeg: settings.MinSatElevation, hoursAhead: 12);
+                    }
+                    catch
+                    {
+                        errorMessage = "Satellite pass data unavailable.";
+                    }
+
+                    report = await ReportService.GenerateAsync(settings, solar, bands, passes);
                 }
             }
-
-            report = await ReportService.GenerateAsync(settings, solar, bands, passes);
         }
         catch (Exception ex)
         {
-            errorMessage = $"Could not generate report: {ex.Message}";
+            errorMessage = $"Unable to fetch solar data: {ex.Message}";
         }
         finally
         {
