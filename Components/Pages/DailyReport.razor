@@ -131,8 +131,10 @@
 }
 
 <!-- ── Upcoming Passes (collapsible) ────────────────────────── -->
-@if (settings!.IsConfigured && passes.Count > 0)
+@if (settings!.SatellitesEnabled && settings.IsConfigured && passes.Count > 0)
 {
+    var visiblePasses = passes.Where(p => p.IsUpcoming).OrderBy(p => p.AosTime).ToList();
+
     <div class="collapsible-header" @onclick="() => showPasses = !showPasses">
         <h2>Upcoming Passes</h2>
         <span class="collapse-chevron">@(showPasses ? "▲" : "▼")</span>
@@ -141,7 +143,7 @@
     @if (showPasses)
     {
         <div class="report-pass-list">
-            @foreach (var p in passes.Where(p => p.IsUpcoming).OrderBy(p => p.AosTime).Take(5))
+            @foreach (var p in visiblePasses.Take(passLimit))
             {
                 <div class="report-pass-item">
                     <div class="report-pass-sat">@p.SatelliteName</div>
@@ -150,6 +152,12 @@
                 </div>
             }
         </div>
+        @if (visiblePasses.Count > passLimit)
+        {
+            <button class="btn-ghost show-more-btn" @onclick="() => passLimit += 5">
+                Show more (@(visiblePasses.Count - passLimit) remaining)
+            </button>
+        }
     }
 }
 
@@ -235,6 +243,7 @@
     private Dictionary<string, List<BandForecast>> forecastByDay = [];
     private GRRadio.Models.DailyReport? report;
     private List<SatellitePass> passes = [];
+    private int passLimit = 5;
     private bool loading = true;
     private string errorMessage = "";
 
@@ -269,6 +278,7 @@
     {
         loading = true;
         errorMessage = "";
+        passLimit = 5;
         StateHasChanged();
 
         try
@@ -294,15 +304,18 @@
                     .GroupBy(f => f.Hour.ToLocalTime().ToString("ddd, MMM d"))
                     .ToDictionary(g => g.Key, g => g.ToList());
 
-                try
+                if (settings.SatellitesEnabled)
                 {
-                    passes = await SatService.GetPassesAsync(
-                        settings.SatelliteWatchlist, lat, lon,
-                        altKm: 0, minElevDeg: settings.MinSatElevation, hoursAhead: 12);
-                }
-                catch
-                {
-                    errorMessage = "Satellite pass data unavailable.";
+                    try
+                    {
+                        passes = await SatService.GetPassesAsync(
+                            settings.SatelliteWatchlist, lat, lon,
+                            altKm: 0, minElevDeg: settings.MinSatElevation, hoursAhead: 24);
+                    }
+                    catch
+                    {
+                        errorMessage = "Satellite pass data unavailable.";
+                    }
                 }
 
                 if (settings.DailyReportEnabled)

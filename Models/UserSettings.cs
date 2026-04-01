@@ -11,6 +11,7 @@ public class UserSettings
     public bool AlertsEnabled { get; set; } = true;
     public bool DarkMode { get; set; } = true;
     public bool DailyReportEnabled { get; set; } = false;
+    public bool SatellitesEnabled { get; set; } = false;
 
     public bool IsConfigured => !string.IsNullOrWhiteSpace(Callsign) && !string.IsNullOrWhiteSpace(GridSquare);
 

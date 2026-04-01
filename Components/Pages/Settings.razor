@@ -45,6 +45,15 @@
     <div class="settings-section">
         <h3 class="settings-section-title">Satellites</h3>
 
+        <div class="form-group toggle-group">
+            <label class="form-label">Satellites Enabled</label>
+            <input type="checkbox" class="form-toggle" @bind="satellitesEnabled" />
+        </div>
+        <span class="form-hint">Shows upcoming passes on the Daily tab.</span>
+
+        @if (satellitesEnabled)
+        {
+
         <div class="form-group">
             <label class="form-label">Minimum Pass Elevation</label>
             <div class="slider-row">
@@ -74,6 +83,11 @@
                 <button class="btn-secondary" @onclick="AddSat">Add</button>
             </div>
         </div>
+
+        <button class="btn-ghost" style="margin-top: 4px;" @onclick='() => Nav.NavigateTo("/satellites")'>
+            View all passes →
+        </button>
+        }
     </div>
 
     <!-- App Settings -->
@@ -89,6 +103,16 @@
             <label class="form-label">Dark Mode</label>
             <input type="checkbox" class="form-toggle" @bind="darkMode" />
         </div>
+
+        <div class="form-group toggle-group">
+            <label class="form-label">Daily Report</label>
+            <input type="checkbox" class="form-toggle" @bind="dailyReportEnabled" />
+        </div>
+        <span class="form-hint">Morning briefing — band conditions, passes, and a motivational phrase.</span>
+
+        <button class="btn-ghost" style="margin-top: 12px;" @onclick='() => Nav.NavigateTo("/phrase-admin")'>
+            Manage Phrases →
+        </button>
     </div>
 
     <!-- Save -->
@@ -113,6 +137,8 @@
     private List<string> watchlist = [];
     private bool alertsEnabled = true;
     private bool darkMode = true;
+    private bool dailyReportEnabled = false;
+    private bool satellitesEnabled = false;
     private string newSatName = "";
     private string locationMessage = "";
     private string saveMessage = "";
@@ -125,8 +151,10 @@
         gridSquare   = s.GridSquare;
         minElevation = s.MinSatElevation;
         watchlist    = [.. s.SatelliteWatchlist];
-        alertsEnabled = s.AlertsEnabled;
-        darkMode     = s.DarkMode;
+        alertsEnabled       = s.AlertsEnabled;
+        darkMode            = s.DarkMode;
+        dailyReportEnabled  = s.DailyReportEnabled;
+        satellitesEnabled   = s.SatellitesEnabled;
     }
 
     private void Save()
@@ -155,8 +183,10 @@
             Longitude          = lon,
             MinSatElevation    = minElevation,
             SatelliteWatchlist = watchlist,
-            AlertsEnabled      = alertsEnabled,
-            DarkMode           = darkMode
+            AlertsEnabled       = alertsEnabled,
+            DarkMode            = darkMode,
+            DailyReportEnabled  = dailyReportEnabled,
+            SatellitesEnabled   = satellitesEnabled
         });
 
         saveMessage = "Settings saved!";

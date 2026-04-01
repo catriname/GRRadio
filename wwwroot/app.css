@@ -936,3 +936,11 @@ a { color: var(--accent); text-decoration: none; cursor: pointer; }
     color: var(--text-secondary);
     margin-top: 2px;
 }
+
+.show-more-btn {
+    width: 100%;
+    margin: 6px 0 4px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    text-align: center;
+}
