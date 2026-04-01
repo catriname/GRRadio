@@ -688,3 +688,203 @@ a { color: var(--accent); text-decoration: none; cursor: pointer; }
 }
 
 #blazor-error-ui .dismiss { cursor: pointer; position: absolute; right: 0.75rem; top: 0.5rem; }
+
+/* ── Daily Report ─────────────────────────────────────────────── */
+.report-disabled-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    padding: 48px 24px;
+    color: var(--text-dim);
+    text-align: center;
+}
+
+.report-disabled-icon { color: var(--text-dim); }
+
+.report-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 48px 24px;
+    color: var(--text-secondary);
+}
+
+.spinner-large { font-size: 36px; animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.report-greeting {
+    padding: 20px 0 8px;
+}
+
+.report-greeting-text {
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--accent);
+    line-height: 1.2;
+}
+
+.report-generated-at {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-top: 4px;
+}
+
+.report-phrase-card {
+    background: var(--bg-card);
+    border-left: 3px solid var(--accent-dim);
+    border-radius: 0 8px 8px 0;
+    padding: 14px 16px;
+    margin: 12px 0 20px;
+}
+
+.report-phrase-text {
+    font-style: italic;
+    color: var(--text-secondary);
+    font-size: 15px;
+    line-height: 1.6;
+}
+
+.report-band-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 8px; }
+
+.report-band-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    background: var(--bg-card);
+    border-radius: 10px;
+    padding: 14px;
+    border-left: 4px solid var(--border);
+}
+
+.report-band-item.rating-excellent { border-left-color: var(--excellent); }
+.report-band-item.rating-good      { border-left-color: var(--good); }
+
+.report-band-name {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--accent);
+    min-width: 40px;
+}
+
+.report-band-body { flex: 1; }
+
+.report-band-message {
+    font-size: 14px;
+    color: var(--text-primary);
+    line-height: 1.4;
+    margin-bottom: 4px;
+}
+
+.report-band-regions {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 3px;
+}
+
+.report-band-mode {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 2px;
+}
+
+.report-band-rating {
+    font-size: 14px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.report-quiet-bands {
+    background: var(--bg-card);
+    border-radius: 10px;
+    padding: 16px;
+    color: var(--text-secondary);
+    font-size: 14px;
+    margin-bottom: 8px;
+}
+
+.report-pass-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 8px; }
+
+.report-pass-item {
+    background: var(--bg-card);
+    border-radius: 10px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.report-pass-sat {
+    font-weight: 700;
+    color: var(--accent);
+    font-size: 15px;
+}
+
+.report-pass-desc {
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.report-pass-badge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 10px;
+    display: inline-block;
+    align-self: flex-start;
+    margin-top: 2px;
+    background: var(--bg-card-hover);
+    color: var(--text-secondary);
+}
+
+.report-pass-badge.rating-excellent { color: var(--excellent); }
+.report-pass-badge.rating-good      { color: var(--good); }
+.report-pass-badge.rating-fair      { color: var(--fair); }
+
+.report-weather-card {
+    background: var(--bg-card);
+    border-radius: 10px;
+    padding: 14px;
+    color: var(--text-secondary);
+    font-size: 13px;
+    line-height: 1.6;
+    margin-bottom: 8px;
+}
+
+/* ── Phrase Admin ─────────────────────────────────────────────── */
+.phrase-textarea {
+    min-height: 80px;
+    resize: vertical;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.phrase-list { display: flex; flex-direction: column; gap: 10px; }
+
+.phrase-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    background: var(--bg-card);
+    border-radius: 8px;
+    padding: 12px;
+}
+
+.phrase-item-body { flex: 1; }
+
+.phrase-item-text {
+    font-size: 14px;
+    color: var(--text-primary);
+    line-height: 1.4;
+}
+
+.phrase-item-category {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.back-btn { padding: 4px 0; font-size: 14px; }

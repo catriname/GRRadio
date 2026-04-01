@@ -1,0 +1,113 @@
+@page "/phrase-admin"
+@using GRRadio.Models
+@using GRRadio.Services
+@inject PhraseService PhraseSvc
+@inject NavigationManager Nav
+
+<div class="page-header">
+    <button class="btn-ghost back-btn" @onclick='() => Nav.NavigateTo("/settings")'>← Back</button>
+    <h1>Phrase Library</h1>
+</div>
+
+<div class="settings-form">
+
+    <div class="settings-section">
+        <h3 class="settings-section-title">Add a Phrase</h3>
+        <p class="form-hint" style="margin-bottom: 12px;">
+            These appear in your daily report. Write what motivates you — personal, ham radio, anything.
+        </p>
+
+        <div class="form-group">
+            <label class="form-label">Phrase</label>
+            <textarea class="form-input phrase-textarea"
+                      placeholder="Write your phrase here…"
+                      @bind="newText"
+                      maxlength="280"></textarea>
+            <span class="form-hint">@newText.Length / 280</span>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Category</label>
+            <select class="form-input" @bind="newCategory">
+                <option value="general">General</option>
+                <option value="wellness">Wellness</option>
+                <option value="dx">DX / Propagation</option>
+                <option value="morning">Morning</option>
+                <option value="evening">Evening</option>
+            </select>
+        </div>
+
+        <button class="btn-primary" @onclick="AddPhrase" disabled="@string.IsNullOrWhiteSpace(newText)">
+            Add Phrase
+        </button>
+
+        @if (!string.IsNullOrEmpty(statusMessage))
+        {
+            <div class="form-hint" style="margin-top: 8px; color: var(--alert-success);">@statusMessage</div>
+        }
+    </div>
+
+    <!-- User-added phrases -->
+    <div class="settings-section">
+        <h3 class="settings-section-title">Your Phrases (@userPhrases.Count)</h3>
+
+        @if (userPhrases.Count == 0)
+        {
+            <p class="form-hint">No custom phrases yet. Add one above.</p>
+        }
+        else
+        {
+            <div class="phrase-list">
+                @foreach (var phrase in userPhrases)
+                {
+                    <div class="phrase-item">
+                        <div class="phrase-item-body">
+                            <div class="phrase-item-text">@phrase.Text</div>
+                            <div class="phrase-item-category">@phrase.Category</div>
+                        </div>
+                        <button class="watchlist-remove" @onclick="() => DeletePhrase(phrase.Id)">✕</button>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+
+    <!-- Built-in count -->
+    <div class="settings-section">
+        <h3 class="settings-section-title">Built-in Phrases</h3>
+        <p class="form-hint">@builtInCount built-in phrases are always included in the random pool alongside yours.</p>
+    </div>
+
+</div>
+
+@code {
+    private List<Phrase> userPhrases = [];
+    private int builtInCount = 0;
+    private string newText = "";
+    private string newCategory = "general";
+    private string statusMessage = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        userPhrases = PhraseSvc.GetUserPhrases();
+        var all = await PhraseSvc.GetAllPhrasesAsync();
+        builtInCount = all.Count - userPhrases.Count;
+    }
+
+    private void AddPhrase()
+    {
+        if (string.IsNullOrWhiteSpace(newText)) return;
+        PhraseSvc.AddUserPhrase(newText, newCategory);
+        userPhrases = PhraseSvc.GetUserPhrases();
+        statusMessage = "Phrase added!";
+        newText = "";
+        newCategory = "general";
+    }
+
+    private void DeletePhrase(string id)
+    {
+        PhraseSvc.DeleteUserPhrase(id);
+        userPhrases = PhraseSvc.GetUserPhrases();
+        statusMessage = "";
+    }
+}

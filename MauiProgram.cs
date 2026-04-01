@@ -19,6 +19,8 @@ public static class MauiProgram
 
 		// GRRadio services
 		builder.Services.AddSingleton<SettingsService>();
+		builder.Services.AddSingleton<PhraseService>();
+		builder.Services.AddSingleton<DailyReportService>();
 		builder.Services.AddHttpClient<SolarWeatherService>(client =>
 		{
 			client.DefaultRequestHeaders.Add("User-Agent", "GRRadio/1.0 (ham radio propagation app)");

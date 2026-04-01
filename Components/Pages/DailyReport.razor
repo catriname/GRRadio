@@ -1,0 +1,186 @@
+@page "/daily-report"
+@using GRRadio.Models
+@using GRRadio.Services
+@inject SettingsService SettingsSvc
+@inject SolarWeatherService SolarService
+@inject SatelliteService SatService
+@inject DailyReportService ReportService
+@inject NavigationManager Nav
+
+<div class="page-header">
+    <h1>Daily Report</h1>
+    <button class="refresh-btn" @onclick="GenerateReport" disabled="@loading">
+        @if (loading) { <span class="spinner">⟳</span> } else { <span>⟳</span> }
+    </button>
+</div>
+
+@if (!settings!.DailyReportEnabled)
+{
+    <div class="report-disabled-card">
+        <div class="report-disabled-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/>
+                <line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/>
+                <line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+            </svg>
+        </div>
+        <p>Daily Report is turned off.</p>
+        <button class="btn-secondary" @onclick='() => Nav.NavigateTo("/settings")'>
+            Enable in Settings
+        </button>
+    </div>
+}
+else if (loading)
+{
+    <div class="report-loading">
+        <div class="spinner-large">⟳</div>
+        <p>Gathering your report…</p>
+    </div>
+}
+else if (report is not null)
+{
+    <!-- Greeting -->
+    <div class="report-greeting">
+        <div class="report-greeting-text">@report.Greeting</div>
+        <div class="report-generated-at">@report.GeneratedAtLabel</div>
+    </div>
+
+    <!-- Motivational Phrase -->
+    <div class="report-phrase-card">
+        <div class="report-phrase-text">@report.MotivationalPhrase</div>
+    </div>
+
+    <!-- Band Highlights -->
+    @if (report.HasBandHighlights)
+    {
+        <div class="section-header">
+            <h2>On the Air</h2>
+            <span class="section-sub">Good or better conditions</span>
+        </div>
+
+        <div class="report-band-list">
+            @foreach (var b in report.BandHighlights)
+            {
+                <div class="report-band-item @b.Rating.ToCssClass()">
+                    <div class="report-band-name">@b.Band</div>
+                    <div class="report-band-body">
+                        <div class="report-band-message">@b.Message</div>
+                        @if (b.GoodRegions.Count > 0)
+                        {
+                            <div class="report-band-regions">@string.Join(" · ", b.GoodRegions)</div>
+                        }
+                        @if (!string.IsNullOrEmpty(b.BestMode))
+                        {
+                            <div class="report-band-mode">@b.BestMode</div>
+                        }
+                    </div>
+                    <div class="report-band-rating">@b.Rating.ToIcon()</div>
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="report-quiet-bands">
+            <p>Bands are quiet right now — a good time to get the antenna ready for the next opening.</p>
+        </div>
+    }
+
+    <!-- Upcoming Passes -->
+    @if (report.HasUpcomingPasses)
+    {
+        <div class="section-header">
+            <h2>Next Passes</h2>
+            <span class="section-sub">Next 12 hours</span>
+        </div>
+
+        <div class="report-pass-list">
+            @foreach (var p in report.UpcomingPasses)
+            {
+                <div class="report-pass-item">
+                    <div class="report-pass-sat">@p.SatelliteName</div>
+                    <div class="report-pass-desc">@p.Description</div>
+                    <div class="report-pass-badge @p.PassQualityCss">@p.PassQuality</div>
+                </div>
+            }
+        </div>
+    }
+
+    <!-- Space Weather -->
+    <div class="section-header">
+        <h2>Space Weather</h2>
+    </div>
+    <div class="report-weather-card">
+        <p>@report.WeatherSummary</p>
+    </div>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert-card alert-warn">@errorMessage</div>
+    }
+}
+
+@code {
+    private UserSettings? settings;
+    private GRRadio.Models.DailyReport? report;
+    private bool loading = true;
+    private string errorMessage = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        settings = SettingsSvc.Load();
+        if (settings.DailyReportEnabled)
+            await GenerateReport();
+        else
+            loading = false;
+    }
+
+    private async Task GenerateReport()
+    {
+        loading = true;
+        errorMessage = "";
+        StateHasChanged();
+
+        try
+        {
+            settings = SettingsSvc.Load();
+            var solarTask  = SolarService.GetCurrentAsync();
+            var alertsTask = SolarService.GetAlertsAsync();
+
+            List<BandCondition> bands = [];
+            List<SatellitePass> passes = [];
+
+            await Task.WhenAll(solarTask, alertsTask);
+            var solar = solarTask.Result;
+
+            if (settings.IsConfigured)
+            {
+                var (lat, lon) = SettingsService.MaidenheadToLatLon(settings.GridSquare);
+                bands = PropagationEngine.Evaluate(solar, DateTime.UtcNow, lat, lon);
+
+                try
+                {
+                    passes = await SatService.GetPassesAsync(
+                        settings.SatelliteWatchlist, lat, lon,
+                        altKm: 0, minElevDeg: settings.MinSatElevation, hoursAhead: 12);
+                }
+                catch
+                {
+                    errorMessage = "Satellite pass data unavailable — band conditions shown.";
+                }
+            }
+
+            report = await ReportService.GenerateAsync(settings, solar, bands, passes);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Could not generate report: {ex.Message}";
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+}

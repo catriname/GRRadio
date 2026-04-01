@@ -10,6 +10,7 @@ public class UserSettings
     public List<string> SatelliteWatchlist { get; set; } = DefaultWatchlist();
     public bool AlertsEnabled { get; set; } = true;
     public bool DarkMode { get; set; } = true;
+    public bool DailyReportEnabled { get; set; } = false;
 
     public bool IsConfigured => !string.IsNullOrWhiteSpace(Callsign) && !string.IsNullOrWhiteSpace(GridSquare);
 

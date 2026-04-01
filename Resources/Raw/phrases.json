@@ -1,0 +1,154 @@
+{
+  "phrases": [
+    {
+      "id": "b001",
+      "text": "The ionosphere doesn't care about your inbox. Neither should you, right now.",
+      "category": "wellness"
+    },
+    {
+      "id": "b002",
+      "text": "Ham radio is meditation with antennas. You're already doing it right.",
+      "category": "wellness"
+    },
+    {
+      "id": "b003",
+      "text": "Morse code at 20 WPM requires your full attention. Your problems don't stand a chance.",
+      "category": "wellness"
+    },
+    {
+      "id": "b004",
+      "text": "The shack is your sanctuary. You earned this time.",
+      "category": "wellness"
+    },
+    {
+      "id": "b005",
+      "text": "Turning knobs, listening, making contact — this is presence. This is flow.",
+      "category": "wellness"
+    },
+    {
+      "id": "b006",
+      "text": "Stress is just noise on the band. Turn the squelch up on the day.",
+      "category": "wellness"
+    },
+    {
+      "id": "b007",
+      "text": "Every frequency is a river you can step into and leave the world behind.",
+      "category": "wellness"
+    },
+    {
+      "id": "b008",
+      "text": "Static and noise are just the universe reminding you it's still out there.",
+      "category": "wellness"
+    },
+    {
+      "id": "b009",
+      "text": "The antenna is your connection to the world. Every contact is a small miracle of physics.",
+      "category": "general"
+    },
+    {
+      "id": "b010",
+      "text": "You called CQ into the void and someone answered. That never gets old.",
+      "category": "general"
+    },
+    {
+      "id": "b011",
+      "text": "The pileup breaks. Your callsign gets through. Pure joy.",
+      "category": "dx"
+    },
+    {
+      "id": "b012",
+      "text": "One perfect contact with someone on the other side of the planet. That's the whole reason.",
+      "category": "dx"
+    },
+    {
+      "id": "b013",
+      "text": "The DX is out there. It's patient. So are you.",
+      "category": "dx"
+    },
+    {
+      "id": "b014",
+      "text": "Working a new entity feels like finding a door in a wall you thought was solid.",
+      "category": "dx"
+    },
+    {
+      "id": "b015",
+      "text": "The gray line is moving. The bands are waking up.",
+      "category": "morning"
+    },
+    {
+      "id": "b016",
+      "text": "Coffee, a propagation forecast, and a reason to get on the air. That's a good morning.",
+      "category": "morning"
+    },
+    {
+      "id": "b017",
+      "text": "Morning gray line — where the night hands the bands to the day. Best few minutes in radio.",
+      "category": "morning"
+    },
+    {
+      "id": "b018",
+      "text": "The low bands open at sunset. The world gets quieter. You found your frequency.",
+      "category": "evening"
+    },
+    {
+      "id": "b019",
+      "text": "40m at night is the universe saying 'slow down.' It's worth listening to.",
+      "category": "evening"
+    },
+    {
+      "id": "b020",
+      "text": "Evening rag chew: proof that strangers with a common frequency become friends.",
+      "category": "evening"
+    },
+    {
+      "id": "b021",
+      "text": "Every ham who helped you learn something was once where you are now. Pass it forward.",
+      "category": "general"
+    },
+    {
+      "id": "b022",
+      "text": "You built something that reaches around the world with your own hands. Remember that.",
+      "category": "general"
+    },
+    {
+      "id": "b023",
+      "text": "The satellite doesn't know your name, but it's up there flying for you.",
+      "category": "general"
+    },
+    {
+      "id": "b024",
+      "text": "A good pass window is a gift. You don't have to earn it, just be ready.",
+      "category": "general"
+    },
+    {
+      "id": "b025",
+      "text": "The radio hears no rank, no title, no stress. Just your callsign.",
+      "category": "wellness"
+    },
+    {
+      "id": "b026",
+      "text": "When the bands are bad, it's a great time to build something. When they're good, use them.",
+      "category": "general"
+    },
+    {
+      "id": "b027",
+      "text": "Solar flux is just a number until it opens 10m worldwide. Then it's everything.",
+      "category": "dx"
+    },
+    {
+      "id": "b028",
+      "text": "The magic band earned its name. Every opening on 6m is a surprise gift.",
+      "category": "dx"
+    },
+    {
+      "id": "b029",
+      "text": "Patience on a quiet band teaches more than a wide-open pileup.",
+      "category": "wellness"
+    },
+    {
+      "id": "b030",
+      "text": "Log the contact. Write the date. That moment was real, and it's yours forever.",
+      "category": "general"
+    }
+  ]
+}
