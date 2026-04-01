@@ -1,0 +1,211 @@
+@page "/settings"
+@using GRRadio.Models
+@using GRRadio.Services
+@inject SettingsService SettingsSvc
+@inject NavigationManager Nav
+
+<div class="page-header">
+    <h1>Settings</h1>
+</div>
+
+<div class="settings-form">
+
+    <!-- Station Identity -->
+    <div class="settings-section">
+        <h3 class="settings-section-title">Station</h3>
+
+        <div class="form-group">
+            <label class="form-label">Callsign</label>
+            <input class="form-input" type="text"
+                   placeholder="K5GRR"
+                   @bind="callsign"
+                   maxlength="12" />
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Maidenhead Grid Square</label>
+            <input class="form-input" type="text"
+                   placeholder="EL29gp"
+                   @bind="gridSquare"
+                   maxlength="6" />
+            <span class="form-hint">4 or 6 characters, e.g. EL29 or EL29gp</span>
+        </div>
+
+        <button class="btn-secondary" @onclick="UseDeviceLocation">
+            📍 Use My Location
+        </button>
+
+        @if (!string.IsNullOrEmpty(locationMessage))
+        {
+            <div class="form-hint">@locationMessage</div>
+        }
+    </div>
+
+    <!-- Satellite Settings -->
+    <div class="settings-section">
+        <h3 class="settings-section-title">Satellites</h3>
+
+        <div class="form-group">
+            <label class="form-label">Minimum Pass Elevation</label>
+            <div class="slider-row">
+                <input type="range" min="5" max="60" step="5"
+                       @bind="minElevation" class="form-slider" />
+                <span class="slider-value">@minElevation°</span>
+            </div>
+            <span class="form-hint">Passes below this angle are hidden by default</span>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Satellite Watchlist</label>
+            <div class="watchlist">
+                @foreach (var sat in watchlist)
+                {
+                    <div class="watchlist-item">
+                        <span>@sat</span>
+                        <button class="watchlist-remove" @onclick="() => RemoveSat(sat)">✕</button>
+                    </div>
+                }
+            </div>
+            <div class="watchlist-add">
+                <input class="form-input" type="text"
+                       placeholder="Add satellite name…"
+                       @bind="newSatName"
+                       @onkeyup="OnSatKeyUp" />
+                <button class="btn-secondary" @onclick="AddSat">Add</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- App Settings -->
+    <div class="settings-section">
+        <h3 class="settings-section-title">App</h3>
+
+        <div class="form-group toggle-group">
+            <label class="form-label">Alerts Enabled</label>
+            <input type="checkbox" class="form-toggle" @bind="alertsEnabled" />
+        </div>
+
+        <div class="form-group toggle-group">
+            <label class="form-label">Dark Mode</label>
+            <input type="checkbox" class="form-toggle" @bind="darkMode" />
+        </div>
+    </div>
+
+    <!-- Save -->
+    <div class="settings-actions">
+        <button class="btn-primary" @onclick="Save">Save Settings</button>
+        <button class="btn-ghost" @onclick="Cancel">Cancel</button>
+    </div>
+
+    @if (!string.IsNullOrEmpty(saveMessage))
+    {
+        <div class="alert-card @(saveSuccess ? "alert-success" : "alert-error")">
+            @saveMessage
+        </div>
+    }
+
+</div>
+
+@code {
+    private string callsign = "";
+    private string gridSquare = "";
+    private int minElevation = 10;
+    private List<string> watchlist = [];
+    private bool alertsEnabled = true;
+    private bool darkMode = true;
+    private string newSatName = "";
+    private string locationMessage = "";
+    private string saveMessage = "";
+    private bool saveSuccess = false;
+
+    protected override void OnInitialized()
+    {
+        var s = SettingsSvc.Load();
+        callsign     = s.Callsign;
+        gridSquare   = s.GridSquare;
+        minElevation = s.MinSatElevation;
+        watchlist    = [.. s.SatelliteWatchlist];
+        alertsEnabled = s.AlertsEnabled;
+        darkMode     = s.DarkMode;
+    }
+
+    private void Save()
+    {
+        if (string.IsNullOrWhiteSpace(callsign))
+        {
+            saveMessage = "Callsign is required.";
+            saveSuccess = false;
+            return;
+        }
+
+        if (gridSquare.Length is not (4 or 6))
+        {
+            saveMessage = "Grid square must be 4 or 6 characters.";
+            saveSuccess = false;
+            return;
+        }
+
+        var (lat, lon) = SettingsService.MaidenheadToLatLon(gridSquare);
+
+        SettingsSvc.Save(new UserSettings
+        {
+            Callsign           = callsign.ToUpperInvariant().Trim(),
+            GridSquare         = gridSquare.ToUpperInvariant().Trim(),
+            Latitude           = lat,
+            Longitude          = lon,
+            MinSatElevation    = minElevation,
+            SatelliteWatchlist = watchlist,
+            AlertsEnabled      = alertsEnabled,
+            DarkMode           = darkMode
+        });
+
+        saveMessage = "Settings saved!";
+        saveSuccess = true;
+    }
+
+    private async Task UseDeviceLocation()
+    {
+        locationMessage = "Detecting location…";
+        try
+        {
+            var location = await Geolocation.Default.GetLocationAsync(new GeolocationRequest
+            {
+                DesiredAccuracy = GeolocationAccuracy.Medium,
+                Timeout = TimeSpan.FromSeconds(10)
+            });
+
+            if (location is not null)
+            {
+                gridSquare = SettingsService.LatLonToMaidenhead(location.Latitude, location.Longitude);
+                locationMessage = $"Grid: {gridSquare} ({location.Latitude:F4}°, {location.Longitude:F4}°)";
+            }
+            else
+            {
+                locationMessage = "Could not get location.";
+            }
+        }
+        catch (Exception ex)
+        {
+            locationMessage = $"Location error: {ex.Message}";
+        }
+    }
+
+    private void AddSat()
+    {
+        var name = newSatName.Trim().ToUpperInvariant();
+        if (!string.IsNullOrEmpty(name) && !watchlist.Contains(name))
+        {
+            watchlist.Add(name);
+            newSatName = "";
+        }
+    }
+
+    private void RemoveSat(string sat) => watchlist.Remove(sat);
+
+    private void OnSatKeyUp(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") AddSat();
+    }
+
+    private void Cancel() => Nav.NavigateTo("/");
+}

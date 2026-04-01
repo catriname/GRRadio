@@ -1,0 +1,155 @@
+@page "/alerts"
+@using GRRadio.Models
+@using GRRadio.Services
+@inject SolarWeatherService SolarService
+
+<div class="page-header">
+    <h1>Space Weather Alerts</h1>
+    <button class="refresh-btn" @onclick="Refresh">⟳</button>
+</div>
+
+@if (loading)
+{
+    <div class="loading-list">
+        @for (int i = 0; i < 4; i++) { <div class="alert-card skeleton"></div> }
+    </div>
+}
+else
+{
+    <!-- Storm Level Indicator -->
+    @if (solar is not null)
+    {
+        <div class="storm-meter">
+            <div class="storm-label">Geomagnetic Activity</div>
+            <div class="storm-scale">
+                @for (int i = 0; i <= 9; i++)
+                {
+                    <div class="kp-cell @(i <= (int)solar.KIndex ? $"kp-active kp-{KpClass(i)}" : "kp-inactive")">
+                        @i
+                    </div>
+                }
+            </div>
+            <div class="storm-status">Kp = @solar.KIndex.ToString("F1") · @KpDescription((int)solar.KIndex)</div>
+        </div>
+    }
+
+    <!-- Forecast Alerts -->
+    @if (forecastAlerts.Count > 0)
+    {
+        <div class="section-header">
+            <h2>Forecast Alerts (3 days)</h2>
+        </div>
+        @foreach (var fa in forecastAlerts)
+        {
+            <div class="alert-card alert-warn">
+                <div class="alert-time">@fa.Time.ToLocalTime().ToString("ddd HH:mm")</div>
+                <div class="alert-body">
+                    Predicted Kp <strong>@fa.PredictedKIndex.ToString("F0")</strong>
+                    — @KpDescription((int)fa.PredictedKIndex) · SFI @fa.PredictedSfi.ToString("F0")
+                </div>
+            </div>
+        }
+    }
+
+    <!-- NOAA Alerts -->
+    <div class="section-header">
+        <h2>NOAA Alerts</h2>
+        <span class="section-sub">@alerts.Count active</span>
+    </div>
+
+    @if (alerts.Count == 0)
+    {
+        <div class="empty-state">
+            No active space weather alerts. Conditions are quiet.
+        </div>
+    }
+    else
+    {
+        @foreach (var alert in alerts)
+        {
+            <div class="alert-card severity-@alert.Severity.ToString().ToLower()">
+                <div class="alert-header">
+                    <span class="alert-type">@alert.Severity</span>
+                    <span class="alert-time">@FormatAlertTime(alert.IssueTime)</span>
+                </div>
+                <div class="alert-product">@alert.ProductId</div>
+                <div class="alert-body">@alert.Message</div>
+            </div>
+        }
+    }
+}
+
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert-card alert-error">@errorMessage</div>
+}
+
+@code {
+    private SolarData? solar;
+    private List<SpaceWeatherAlert> alerts = [];
+    private List<ForecastEntry> forecastAlerts = [];
+    private bool loading = true;
+    private string errorMessage = "";
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        loading = true;
+        StateHasChanged();
+        try
+        {
+            var solarTask   = SolarService.GetCurrentAsync();
+            var alertsTask  = SolarService.GetAlertsAsync();
+            var forecastTask = SolarService.GetForecastAsync();
+
+            await Task.WhenAll(solarTask, alertsTask, forecastTask);
+
+            solar  = solarTask.Result;
+            alerts = alertsTask.Result;
+            forecastAlerts = forecastTask.Result
+                .Where(f => f.IsAlert && f.Time > DateTime.UtcNow)
+                .OrderBy(f => f.Time)
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private async Task Refresh() => await LoadAsync();
+
+    private static string KpClass(int kp) => kp switch
+    {
+        <= 2 => "quiet",
+        <= 4 => "active",
+        <= 6 => "storm",
+        _    => "severe"
+    };
+
+    private static string KpDescription(int kp) => kp switch
+    {
+        0 or 1 => "Quiet",
+        2      => "Quiet",
+        3      => "Unsettled",
+        4      => "Active",
+        5      => "G1 Minor Storm",
+        6      => "G2 Moderate Storm",
+        7      => "G3 Strong Storm",
+        8      => "G4 Severe Storm",
+        9      => "G5 Extreme Storm",
+        _      => "Unknown"
+    };
+
+    private static string FormatAlertTime(string raw)
+    {
+        return DateTime.TryParse(raw, out var dt)
+            ? dt.ToLocalTime().ToString("MMM d HH:mm")
+            : raw;
+    }
+}

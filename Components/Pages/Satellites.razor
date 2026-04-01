@@ -1,0 +1,188 @@
+@page "/satellites"
+@using GRRadio.Models
+@using GRRadio.Services
+@inject SatelliteService SatService
+@inject SettingsService Settings
+
+<div class="page-header">
+    <h1>Satellites</h1>
+    <button class="refresh-btn" @onclick="Refresh" disabled="@loading">⟳</button>
+</div>
+
+@if (!settings!.IsConfigured)
+{
+    <div class="alert-card alert-warn">
+        Configure your callsign and grid square in Settings first.
+    </div>
+    return;
+}
+
+<!-- SSTV Active Status -->
+@if (sstvStatuses.Any(s => s.IsActive))
+{
+    <div class="section-header">
+        <h2>SSTV Active Now</h2>
+    </div>
+    <div class="sstv-active-strip">
+        @foreach (var s in sstvStatuses.Where(x => x.IsActive))
+        {
+            <div class="sstv-card active">
+                <div class="sstv-name">@s.SatelliteName</div>
+                <div class="sstv-status">● ACTIVE</div>
+                <div class="sstv-freq">@s.Frequency</div>
+                <div class="sstv-mode">@s.Mode</div>
+            </div>
+        }
+    </div>
+}
+
+<!-- Filter Controls -->
+<div class="filter-bar">
+    <label>
+        <input type="checkbox" @bind="showLow" /> Include low passes (&lt;@settings.MinSatElevation°)
+    </label>
+    <label>
+        Min elev: <strong>@settings.MinSatElevation°</strong>
+    </label>
+</div>
+
+<!-- Upcoming Passes -->
+<div class="section-header">
+    <h2>Upcoming Passes</h2>
+    <span class="section-sub">Next 72 hours · @filteredPasses.Count passes</span>
+</div>
+
+@if (loading)
+{
+    <div class="loading-list">
+        @for (int i = 0; i < 6; i++) { <div class="pass-card skeleton"></div> }
+    </div>
+}
+else if (filteredPasses.Count == 0)
+{
+    <div class="empty-state">
+        No passes above @settings.MinSatElevation° in the next 72 hours.
+        <br /><small>Check your grid square or lower the minimum elevation.</small>
+    </div>
+}
+else
+{
+    string? lastDay = null;
+
+    @foreach (var pass in filteredPasses)
+    {
+        var day = pass.AosTime.ToLocalTime().ToString("ddd, MMM d");
+        if (day != lastDay)
+        {
+            lastDay = day;
+            <div class="day-divider">@day</div>
+        }
+
+        <div class="pass-card @pass.PassQualityCss @(pass.IsActive ? "pass-active" : "") @(pass.IsSstv ? "pass-sstv" : "")">
+            <div class="pass-header">
+                <span class="pass-sat-name">@pass.SatelliteName</span>
+                @if (pass.IsSstv)
+                {
+                    <span class="sstv-badge">📡 SSTV</span>
+                }
+                @if (pass.IsActive)
+                {
+                    <span class="active-badge">● LIVE</span>
+                }
+                <span class="pass-quality @pass.PassQualityCss">@pass.PassQuality</span>
+            </div>
+
+            <div class="pass-details">
+                <div class="pass-detail">
+                    <span class="detail-label">AOS</span>
+                    <span class="detail-value">@pass.AosTimeLocal (@pass.AosDirection)</span>
+                </div>
+                <div class="pass-detail">
+                    <span class="detail-label">Max El</span>
+                    <span class="detail-value">@pass.MaxElevationStr</span>
+                </div>
+                <div class="pass-detail">
+                    <span class="detail-label">LOS</span>
+                    <span class="detail-value">@pass.LosTimeLocal (@pass.LosDirection)</span>
+                </div>
+                <div class="pass-detail">
+                    <span class="detail-label">Duration</span>
+                    <span class="detail-value">@pass.Duration.ToString(@"m\:ss")</span>
+                </div>
+            </div>
+
+            @if (pass.IsUpcoming && pass.TimeUntilAos.TotalMinutes < 30)
+            {
+                <div class="pass-imminent">
+                    AOS in @((int)pass.TimeUntilAos.TotalMinutes)m @(pass.TimeUntilAos.Seconds)s
+                </div>
+            }
+
+            @if (!string.IsNullOrEmpty(pass.SstvStatus))
+            {
+                <div class="sstv-status-line">SSTV: @pass.SstvStatus</div>
+            }
+        </div>
+    }
+}
+
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert-card alert-error">@errorMessage</div>
+}
+
+@code {
+    private UserSettings? settings;
+    private List<SatellitePass> allPasses = [];
+    private List<SatellitePass> filteredPasses = [];
+    private List<SstvSatelliteStatus> sstvStatuses = [];
+    private bool loading = true;
+    private bool showLow = false;
+    private string errorMessage = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        settings = Settings.Load();
+        await LoadPassesAsync();
+    }
+
+    private async Task LoadPassesAsync()
+    {
+        if (settings is null || !settings.IsConfigured) { loading = false; return; }
+
+        loading = true;
+        errorMessage = "";
+        StateHasChanged();
+
+        try
+        {
+            var (lat, lon) = SettingsService.MaidenheadToLatLon(settings.GridSquare);
+
+            var passTask  = SatService.GetPassesAsync(settings.SatelliteWatchlist, lat, lon, 0, settings.MinSatElevation);
+            var sstvTask  = SatService.GetSstvStatusAsync();
+
+            await Task.WhenAll(passTask, sstvTask);
+
+            allPasses    = passTask.Result;
+            sstvStatuses = sstvTask.Result;
+            ApplyFilter();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Unable to load satellite data: {ex.Message}";
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private void ApplyFilter()
+    {
+        filteredPasses = showLow
+            ? allPasses
+            : allPasses.Where(p => p.MaxElevation >= settings!.MinSatElevation).ToList();
+    }
+
+    private async Task Refresh() => await LoadPassesAsync();
+}
