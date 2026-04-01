@@ -8,6 +8,34 @@
     <button class="refresh-btn" @onclick="Refresh">⟳</button>
 </div>
 
+<!-- Solar Bar -->
+@if (solar is not null)
+{
+    <div class="solar-bar condition-@solar.OverallCondition.ToString().ToLower()">
+        <div class="solar-metric">
+            <span class="metric-label">SFI</span>
+            <span class="metric-value">@solar.SolarFluxIndex.ToString("F0")</span>
+        </div>
+        <div class="solar-metric">
+            <span class="metric-label">Kp</span>
+            <span class="metric-value">@solar.KIndex.ToString("F1")</span>
+        </div>
+        <div class="solar-metric">
+            <span class="metric-label">Wind</span>
+            <span class="metric-value">@solar.SolarWindSpeed.ToString("F0") km/s</span>
+        </div>
+        <div class="solar-metric">
+            <span class="metric-label">Bz</span>
+            <span class="metric-value @(solar.BzComponent < -5 ? "bz-south" : "bz-north")">@solar.BzComponent.ToString("F1")</span>
+        </div>
+        <div class="solar-status">
+            <span class="condition-badge condition-@solar.OverallCondition.ToString().ToLower()">
+                @solar.OverallCondition
+            </span>
+        </div>
+    </div>
+}
+
 @if (loading)
 {
     <div class="loading-list">

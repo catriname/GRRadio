@@ -909,3 +909,30 @@ a { color: var(--accent); text-decoration: none; cursor: pointer; }
 }
 
 .collapsible-header:hover .collapse-chevron { color: var(--accent); }
+
+/* ── Daily Header (persistent greeting) ──────────────────────── */
+.daily-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 0 10px;
+}
+
+.daily-time-icon {
+    color: var(--accent);
+    flex-shrink: 0;
+    line-height: 0;
+}
+
+.daily-greeting-line {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.2;
+}
+
+.daily-date-line {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+}
