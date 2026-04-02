@@ -4,16 +4,16 @@
    ═══════════════════════════════════════════════════════════════ */
 
 :root {
-    --bg-primary:    #0d0d0d;
-    --bg-card:       #1a1a1a;
-    --bg-card-hover: #222222;
-    --bg-nav:        #111111;
-    --accent:        #e8a22e;
-    --accent-dim:    #b37d1a;
-    --text-primary:  #f0e6d0;
-    --text-secondary:#a09070;
-    --text-dim:      #555;
-    --border:        #2a2a2a;
+    --bg-primary:    #1d100e;
+    --bg-card:       #2A1A10;
+    --bg-card-hover: #342214;
+    --bg-nav:        #150C0A;
+    --accent:        #b77222;
+    --accent-dim:    #8A5318;
+    --text-primary:  #efe9e6;
+    --text-secondary:#b8a898;
+    --text-dim:      #6E644A;
+    --border:        #2E2018;
     --nav-height:    64px;
     --safe-top:      env(safe-area-inset-top, 0px);
     --safe-bottom:   env(safe-area-inset-bottom, 0px);
@@ -29,21 +29,21 @@
     --alert-success: #2ecc71;
 }
 
-/* ── Light Theme — Sage ───────────────────────────────────────────
-   Monochromatic sage/seafoam: palest mist → mid sage → deep teal.
-   All shades of one family. No contrast color pops.
+/* ── Light Theme — Warm Linen ─────────────────────────────────────
+   Mirror of the dark theme. Same 4 colors, inverted luminosity.
+   efe9e6 cream bg · b77222 shared amber accent · 1d100e dark text/nav
    ════════════════════════════════════════════════════════════════ */
 .light {
-    --bg-primary:    #DFF0ED;
-    --bg-card:       #CBE6E2;
-    --bg-card-hover: #B6DAD5;
-    --bg-nav:        #1F6B62;
-    --accent:        #2E8A80;
-    --accent-dim:    #5BAAA2;
-    --text-primary:  #0A2926;
-    --text-secondary:#1F5E58;
-    --text-dim:      #5A9690;
-    --border:        rgba(31, 107, 98, 0.18);
+    --bg-primary:    #efe9e6;
+    --bg-card:       #E4DDD8;
+    --bg-card-hover: #D8CFC8;
+    --bg-nav:        #1d100e;
+    --accent:        #b77222;
+    --accent-dim:    #D4924A;
+    --text-primary:  #1d100e;
+    --text-secondary:#5d543b;
+    --text-dim:      #9A8A78;
+    --border:        rgba(93, 84, 59, 0.18);
 
     --excellent: #0097A7;
     --good:      #2E7D32;
@@ -51,7 +51,7 @@
     --poor:      #C62828;
     --closed:    #78909C;
 
-    --card-shadow: 0 2px 16px rgba(31, 107, 98, 0.12);
+    --card-shadow: 0 2px 16px rgba(29, 16, 14, 0.10);
     --card-radius: 14px;
 }
 
@@ -1159,7 +1159,7 @@ a { color: var(--accent); text-decoration: none; cursor: pointer; }
 /* ── Nav: sage teal with white icons/text ── */
 .light .bottom-nav {
     border-top: none;
-    box-shadow: 0 -2px 16px rgba(31, 107, 98, 0.20);
+    box-shadow: 0 -2px 16px rgba(183, 114, 34, 0.18);
 }
 
 .light .nav-item { color: rgba(255, 255, 255, 0.65); }
@@ -1183,18 +1183,10 @@ a { color: var(--accent); text-decoration: none; cursor: pointer; }
 .light .alert-card { border-radius: var(--card-radius); border-left-width: 3px; border-left-style: solid; }
 .light .news-item  { border-radius: var(--card-radius); }
 
-/* ── Greeting: sage mist → mid sage → deep teal ── */
-.light .daily-header {
-    background: linear-gradient(150deg, #D0EDE9 0%, #8ECAC3 40%, #3D9B92 75%, #1F6B62 100%);
-    border-radius: 20px;
-    padding: 24px 18px 20px;
-    margin-bottom: 8px;
-    box-shadow: 0 6px 28px rgba(31, 107, 98, 0.18);
-}
 
 /* ── Collapsible section headers ── */
 .light .collapsible-header {
-    background: rgba(31, 107, 98, 0.08);
+    background: rgba(183, 114, 34, 0.08);
     border-radius: 10px;
 }
 .light .collapsible-header h2 { color: var(--text-primary); }
@@ -1206,8 +1198,8 @@ a { color: var(--accent); text-decoration: none; cursor: pointer; }
 .light .page-header h1 { color: var(--text-primary); }
 
 .light .grid-badge {
-    background: rgba(46, 138, 128, 0.14);
-    border-color: rgba(46, 138, 128, 0.28);
+    background: rgba(183, 114, 34, 0.12);
+    border-color: rgba(183, 114, 34, 0.24);
     color: var(--accent);
 }
 
@@ -1235,14 +1227,14 @@ a { color: var(--accent); text-decoration: none; cursor: pointer; }
 /* ── Alert cards ── */
 .light .alert-card.severity-warning { border-left-color: var(--fair); background: rgba(230, 81, 0, 0.06); }
 .light .alert-card.severity-alert   { border-left-color: var(--poor); background: rgba(198, 40, 40, 0.06); }
-.light .alert-card.severity-watch   { border-left-color: var(--accent); background: rgba(46, 138, 128, 0.08); }
+.light .alert-card.severity-watch   { border-left-color: var(--accent); background: rgba(183, 114, 34, 0.07); }
 .light .alert-card.alert-warn       { border-left-color: var(--fair); background: rgba(230, 81, 0, 0.06); }
 .light .alert-card.alert-success    { border-left-color: var(--good); background: rgba(46, 125, 50, 0.06); }
 
 /* ── News ── */
 .light .news-item-dated  { border-left-color: var(--accent); }
-.light .news-flair       { background: rgba(46, 138, 128, 0.14); }
-.light .news-daterange   { background: rgba(46, 138, 128, 0.16); color: var(--accent); }
+.light .news-flair       { background: rgba(183, 114, 34, 0.12); }
+.light .news-daterange   { background: rgba(183, 114, 34, 0.14); color: var(--accent); }
 
 /* ── Form inputs ── */
 .light .form-input {
@@ -1254,7 +1246,7 @@ a { color: var(--accent); text-decoration: none; cursor: pointer; }
 
 /* ── Buttons ── */
 .light .btn-primary   { background: var(--accent); }
-.light .btn-secondary { background: rgba(46, 138, 128, 0.10); color: var(--accent); border-color: rgba(46, 138, 128, 0.26); }
+.light .btn-secondary { background: rgba(183, 114, 34, 0.08); color: var(--accent); border-color: rgba(183, 114, 34, 0.22); }
 .light .btn-ghost     { color: var(--text-secondary); }
 
 /* ── Settings sections ── */
@@ -1267,9 +1259,9 @@ a { color: var(--accent); text-decoration: none; cursor: pointer; }
 
 /* ── Misc ── */
 .light .empty-state { color: var(--text-dim); }
-.light .news-list-scroll { scrollbar-color: rgba(46, 138, 128, 0.30) transparent; }
-.light .news-list-scroll::-webkit-scrollbar-thumb { background: rgba(46, 138, 128, 0.30); }
+.light .news-list-scroll { scrollbar-color: rgba(183, 114, 34, 0.25) transparent; }
+.light .news-list-scroll::-webkit-scrollbar-thumb { background: rgba(183, 114, 34, 0.25); }
 
 /* ── Kp inactive in light ── */
-.light .kp-inactive { background: #C0DDD9; border-color: rgba(31, 107, 98, 0.16); }
+.light .kp-inactive { background: #E4DDD8; border-color: rgba(93, 84, 59, 0.16); }
 
