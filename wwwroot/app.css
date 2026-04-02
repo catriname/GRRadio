@@ -4,17 +4,18 @@
    ═══════════════════════════════════════════════════════════════ */
 
 :root {
-    --bg-primary:    #0d0d0d;
-    --bg-card:       #1a1a1a;
-    --bg-card-hover: #222222;
-    --bg-nav:        #111111;
-    --accent:        #e8a22e;
-    --accent-dim:    #b37d1a;
-    --text-primary:  #f0e6d0;
-    --text-secondary:#a09070;
-    --text-dim:      #555;
-    --border:        #2a2a2a;
+    --bg-primary:    #0F0806;
+    --bg-card:       #180E09;
+    --bg-card-hover: #221209;
+    --bg-nav:        #070403;
+    --accent:        #fcc33e;
+    --accent-dim:    #cb4b29;
+    --text-primary:  #F8EAD0;
+    --text-secondary:#B08050;
+    --text-dim:      #5A3A1E;
+    --border:        #1C0E08;
     --nav-height:    64px;
+    --safe-top:      env(safe-area-inset-top, 0px);
     --safe-bottom:   env(safe-area-inset-bottom, 0px);
 
     --excellent: #00d2d3;
@@ -26,6 +27,32 @@
     --alert-warn:    #f39c12;
     --alert-error:   #e74c3c;
     --alert-success: #2ecc71;
+}
+
+/* ── Light Theme — Warm Linen ─────────────────────────────────────
+   Same 4 colors inverted. Burnt orange accent readable on light.
+   EDD9BE rich linen bg · cb4b29 accent · fcc33e gold secondary · 0F0806 nav
+   ════════════════════════════════════════════════════════════════ */
+.light {
+    --bg-primary:    #EDD9BE;
+    --bg-card:       #DFCAA8;
+    --bg-card-hover: #D0B890;
+    --bg-nav:        #0F0806;
+    --accent:        #cb4b29;
+    --accent-dim:    #fcc33e;
+    --text-primary:  #0F0806;
+    --text-secondary:#694425;
+    --text-dim:      #9A7850;
+    --border:        rgba(105, 68, 37, 0.18);
+
+    --excellent: #0097A7;
+    --good:      #2E7D32;
+    --fair:      #E65100;
+    --poor:      #C62828;
+    --closed:    #78909C;
+
+    --card-shadow: 0 2px 16px rgba(29, 16, 14, 0.10);
+    --card-radius: 14px;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -43,19 +70,30 @@ html, body {
 
 a { color: var(--accent); text-decoration: none; cursor: pointer; }
 
+/* ── Status bar spacer (rendered before #app in index.html) ─────── */
+.status-bar-safe-area {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: var(--safe-top);
+    background: var(--bg-primary);
+    z-index: 200;
+}
+
 /* ── App Shell ────────────────────────────────────────────────── */
 .app-shell {
     display: flex;
     flex-direction: column;
     height: 100vh;
     height: 100dvh;
+    background: var(--bg-primary);
+    color: var(--text-primary);
 }
 
 .app-content {
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
-    padding: 12px 12px calc(var(--nav-height) + var(--safe-bottom) + 12px);
+    padding: calc(12px + var(--safe-top)) 12px calc(var(--nav-height) + var(--safe-bottom) + 12px);
     -webkit-overflow-scrolling: touch;
 }
 
@@ -119,6 +157,9 @@ a { color: var(--accent); text-decoration: none; cursor: pointer; }
     padding: 2px 8px;
     border-radius: 12px;
     border: 1px solid var(--border);
+    vertical-align: middle;
+    position: relative;
+    top: -4px;
 }
 
 .refresh-btn {
@@ -702,6 +743,28 @@ a { color: var(--accent); text-decoration: none; cursor: pointer; }
     line-height: 1.6;
 }
 
+/* ── Save Toast ───────────────────────────────────────────────── */
+.save-toast {
+    position: fixed;
+    top: calc(var(--safe-top) + 16px);
+    left: 20px;
+    right: 20px;
+    z-index: 500;
+    padding: 14px 18px;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 600;
+    text-align: center;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+    animation: toast-in 0.2s ease;
+}
+.save-toast.toast-success { background: var(--alert-success); color: #fff; }
+.save-toast.toast-error   { background: var(--alert-error);   color: #fff; }
+@keyframes toast-in {
+    from { opacity: 0; transform: translateY(-10px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
 /* ── Blazor Error UI ──────────────────────────────────────────── */
 #blazor-error-ui {
     background: #b32000;
@@ -923,15 +986,16 @@ a { color: var(--accent); text-decoration: none; cursor: pointer; }
     align-items: center;
     justify-content: space-between;
     margin: 16px 0 10px;
+    padding: 14px 16px;
     cursor: pointer;
     user-select: none;
     -webkit-user-select: none;
 }
 
-.collapsible-header h2 { font-size: 16px; font-weight: 700; }
+.collapsible-header h2 { font-size: 20px; font-weight: 700; }
 
 .collapse-chevron {
-    font-size: 11px;
+    font-size: 18px;
     color: var(--text-dim);
     transition: color 0.15s;
 }
@@ -1056,6 +1120,7 @@ a { color: var(--accent); text-decoration: none; cursor: pointer; }
 }
 
 .news-score { color: var(--accent-dim); }
+.light .news-score { color: var(--accent); }
 
 .news-item-dated {
     border-left: 3px solid var(--accent-dim);
@@ -1110,3 +1175,120 @@ a { color: var(--accent); text-decoration: none; cursor: pointer; }
     font-size: 10px;
     color: var(--accent);
 }
+
+
+/* ═══════════════════════════════════════════════════════════════
+   LIGHT MODE OVERRIDES — DAYBREAK
+   Violet → periwinkle → sage. Cards float. Borders dissolve.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Nav: dark brown bg, gold icons/text ── */
+.light .bottom-nav {
+    border-top: none;
+    box-shadow: 0 -2px 16px rgba(29, 16, 14, 0.20);
+}
+
+.light .nav-item { color: rgba(252, 195, 62, 0.60); }
+.light .nav-item.active, .light .nav-item:hover { color: #fcc33e; }
+
+/* ── Floating cards ── */
+.light .band-card,
+.light .solar-card,
+.light .alert-card,
+.light .report-pass-item,
+.light .news-item,
+.light .storm-meter,
+.light .watchlist-item,
+.light .dx-date-chip {
+    box-shadow: var(--card-shadow);
+    border-color: transparent;
+}
+
+.light .band-card  { border-radius: var(--card-radius); border-top-width: 3px; border-top-style: solid; }
+.light .solar-card { border-radius: var(--card-radius); }
+.light .alert-card { border-radius: var(--card-radius); border-left-width: 3px; border-left-style: solid; }
+.light .news-item  { border-radius: var(--card-radius); }
+
+
+/* ── Collapsible section headers ── */
+.light .collapsible-header {
+    background: rgba(105, 68, 37, 0.10);
+    border-radius: 10px;
+}
+.light .collapsible-header h2 { color: var(--text-primary); }
+
+/* ── Section headers ── */
+.light .section-header h2 { color: var(--text-secondary); }
+
+/* ── Page header ── */
+.light .page-header h1 { color: var(--text-primary); }
+
+.light .grid-badge {
+    background: rgba(203, 75, 41, 0.12);
+    border-color: rgba(203, 75, 41, 0.24);
+    color: var(--accent);
+}
+
+.light .refresh-btn {
+    background: #FFFFFF;
+    box-shadow: 0 2px 10px rgba(22, 32, 48, 0.10);
+    border-color: transparent;
+}
+
+/* ── Solar card header tints ── */
+.light .solar-card-header.condition-excellent { background: rgba(14, 138, 130, 0.10); }
+.light .solar-card-header.condition-good      { background: rgba(26, 122, 56,  0.10); }
+.light .solar-card-header.condition-fair      { background: rgba(192, 96,  48, 0.10); }
+.light .solar-card-header.condition-poor      { background: rgba(176, 32,  32, 0.10); }
+
+/* ── Condition badges ── */
+.light .condition-badge.condition-excellent { background: rgba(14, 138, 130, 0.12); }
+.light .condition-badge.condition-good      { background: rgba(26, 122, 56,  0.12); }
+.light .condition-badge.condition-fair      { background: rgba(192, 96,  48, 0.12); }
+.light .condition-badge.condition-poor      { background: rgba(176, 32,  32, 0.12); }
+
+/* ── Kp scale ── */
+.light .kp-inactive { background: #EDE8F0; border-color: rgba(180, 100, 130, 0.15); }
+
+/* ── Alert cards ── */
+.light .alert-card.severity-warning { border-left-color: var(--fair); background: rgba(230, 81, 0, 0.06); }
+.light .alert-card.severity-alert   { border-left-color: var(--poor); background: rgba(198, 40, 40, 0.06); }
+.light .alert-card.severity-watch   { border-left-color: var(--accent); background: rgba(203, 75, 41, 0.07); }
+.light .alert-card.alert-warn       { border-left-color: var(--fair); background: rgba(230, 81, 0, 0.06); }
+.light .alert-card.alert-success    { border-left-color: var(--good); background: rgba(46, 125, 50, 0.06); }
+
+/* ── News ── */
+.light .news-item-dated  { border-left-color: var(--accent); }
+.light .news-flair       { background: rgba(203, 75, 41, 0.12); }
+.light .news-daterange   { background: rgba(203, 75, 41, 0.14); color: var(--accent); }
+
+/* ── Form inputs ── */
+.light .form-input {
+    background: #FFFFFF;
+    border-color: rgba(180, 100, 130, 0.22);
+    color: var(--text-primary);
+}
+.light .form-input:focus { border-color: var(--accent); }
+
+/* ── Buttons ── */
+.light .btn-primary   { background: var(--accent); }
+.light .btn-secondary { background: rgba(203, 75, 41, 0.08); color: var(--accent); border-color: rgba(203, 75, 41, 0.22); }
+.light .btn-ghost     { color: var(--text-secondary); }
+.light .alert-expand-btn { color: var(--accent); }
+
+/* ── Settings sections ── */
+.light .settings-section {
+    background: var(--bg-card);
+    box-shadow: var(--card-shadow);
+    border-color: transparent;
+    border-radius: var(--card-radius);
+}
+
+/* ── Misc ── */
+.light .empty-state { color: var(--text-dim); }
+.light .news-list-scroll { scrollbar-color: rgba(203, 75, 41, 0.25) transparent; }
+.light .news-list-scroll::-webkit-scrollbar-thumb { background: rgba(203, 75, 41, 0.25); }
+
+/* ── Kp inactive in light ── */
+.light .kp-inactive { background: #EDD9B8; border-color: rgba(105, 68, 37, 0.16); }
+
