@@ -32,11 +32,14 @@ public class SettingsService
         return _cached;
     }
 
+    public event Action? OnChanged;
+
     public void Save(UserSettings settings)
     {
         _cached = settings;
         var json = JsonSerializer.Serialize(settings);
         Preferences.Default.Set(SettingsKey, json);
+        OnChanged?.Invoke();
     }
 
     public void UpdateGridFromLatLon(UserSettings settings, double lat, double lon)
