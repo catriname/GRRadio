@@ -145,14 +145,15 @@
         <button class="btn-ghost" @onclick="Cancel">Cancel</button>
     </div>
 
-    @if (!string.IsNullOrEmpty(saveMessage))
-    {
-        <div class="alert-card @(saveSuccess ? "alert-success" : "alert-error")">
-            @saveMessage
-        </div>
-    }
 
 </div>
+
+@if (!string.IsNullOrEmpty(saveMessage))
+{
+    <div class="save-toast @(saveSuccess ? "toast-success" : "toast-error")">
+        @saveMessage
+    </div>
+}
 
 @code {
     private string callsign = "";
@@ -219,6 +220,7 @@
 
         saveMessage = "Settings saved!";
         saveSuccess = true;
+        _ = Task.Delay(2500).ContinueWith(_ => { saveMessage = ""; InvokeAsync(StateHasChanged); });
     }
 
     private async Task UseDeviceLocation()

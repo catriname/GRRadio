@@ -5,15 +5,15 @@
 
 :root {
     --bg-primary:    #1d100e;
-    --bg-card:       #2A1A10;
-    --bg-card-hover: #342214;
-    --bg-nav:        #150C0A;
-    --accent:        #b77222;
-    --accent-dim:    #8A5318;
-    --text-primary:  #efe9e6;
-    --text-secondary:#b8a898;
-    --text-dim:      #6E644A;
-    --border:        #2E2018;
+    --bg-card:       #271610;
+    --bg-card-hover: #321C12;
+    --bg-nav:        #150C09;
+    --accent:        #fcc33e;
+    --accent-dim:    #cb4b29;
+    --text-primary:  #F8EAD0;
+    --text-secondary:#B08050;
+    --text-dim:      #694425;
+    --border:        #2E1A0E;
     --nav-height:    64px;
     --safe-top:      env(safe-area-inset-top, 0px);
     --safe-bottom:   env(safe-area-inset-bottom, 0px);
@@ -30,20 +30,20 @@
 }
 
 /* ── Light Theme — Warm Linen ─────────────────────────────────────
-   Mirror of the dark theme. Same 4 colors, inverted luminosity.
-   efe9e6 cream bg · b77222 shared amber accent · 1d100e dark text/nav
+   Same 4 colors inverted. Burnt orange accent readable on light.
+   F8EAD0 warm cream bg · cb4b29 accent · fcc33e gold secondary · 1d100e nav
    ════════════════════════════════════════════════════════════════ */
 .light {
-    --bg-primary:    #efe9e6;
-    --bg-card:       #E4DDD8;
-    --bg-card-hover: #D8CFC8;
+    --bg-primary:    #F8EAD0;
+    --bg-card:       #EDD9B8;
+    --bg-card-hover: #E2C9A0;
     --bg-nav:        #1d100e;
-    --accent:        #b77222;
-    --accent-dim:    #D4924A;
+    --accent:        #cb4b29;
+    --accent-dim:    #fcc33e;
     --text-primary:  #1d100e;
-    --text-secondary:#5d543b;
-    --text-dim:      #9A8A78;
-    --border:        rgba(93, 84, 59, 0.18);
+    --text-secondary:#694425;
+    --text-dim:      #9A7850;
+    --border:        rgba(105, 68, 37, 0.18);
 
     --excellent: #0097A7;
     --good:      #2E7D32;
@@ -740,6 +740,28 @@ a { color: var(--accent); text-decoration: none; cursor: pointer; }
     line-height: 1.6;
 }
 
+/* ── Save Toast ───────────────────────────────────────────────── */
+.save-toast {
+    position: fixed;
+    top: calc(var(--safe-top) + 16px);
+    left: 20px;
+    right: 20px;
+    z-index: 500;
+    padding: 14px 18px;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 600;
+    text-align: center;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+    animation: toast-in 0.2s ease;
+}
+.save-toast.toast-success { background: var(--alert-success); color: #fff; }
+.save-toast.toast-error   { background: var(--alert-error);   color: #fff; }
+@keyframes toast-in {
+    from { opacity: 0; transform: translateY(-10px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
 /* ── Blazor Error UI ──────────────────────────────────────────── */
 #blazor-error-ui {
     background: #b32000;
@@ -1095,6 +1117,7 @@ a { color: var(--accent); text-decoration: none; cursor: pointer; }
 }
 
 .news-score { color: var(--accent-dim); }
+.light .news-score { color: var(--accent); }
 
 .news-item-dated {
     border-left: 3px solid var(--accent-dim);
@@ -1156,14 +1179,14 @@ a { color: var(--accent); text-decoration: none; cursor: pointer; }
    Violet → periwinkle → sage. Cards float. Borders dissolve.
    ═══════════════════════════════════════════════════════════════ */
 
-/* ── Nav: sage teal with white icons/text ── */
+/* ── Nav: dark brown bg, gold icons/text ── */
 .light .bottom-nav {
     border-top: none;
-    box-shadow: 0 -2px 16px rgba(183, 114, 34, 0.18);
+    box-shadow: 0 -2px 16px rgba(29, 16, 14, 0.20);
 }
 
-.light .nav-item { color: rgba(255, 255, 255, 0.65); }
-.light .nav-item.active, .light .nav-item:hover { color: #FFFFFF; }
+.light .nav-item { color: rgba(252, 195, 62, 0.60); }
+.light .nav-item.active, .light .nav-item:hover { color: #fcc33e; }
 
 /* ── Floating cards ── */
 .light .band-card,
@@ -1186,7 +1209,7 @@ a { color: var(--accent); text-decoration: none; cursor: pointer; }
 
 /* ── Collapsible section headers ── */
 .light .collapsible-header {
-    background: rgba(183, 114, 34, 0.08);
+    background: rgba(105, 68, 37, 0.10);
     border-radius: 10px;
 }
 .light .collapsible-header h2 { color: var(--text-primary); }
@@ -1198,8 +1221,8 @@ a { color: var(--accent); text-decoration: none; cursor: pointer; }
 .light .page-header h1 { color: var(--text-primary); }
 
 .light .grid-badge {
-    background: rgba(183, 114, 34, 0.12);
-    border-color: rgba(183, 114, 34, 0.24);
+    background: rgba(203, 75, 41, 0.12);
+    border-color: rgba(203, 75, 41, 0.24);
     color: var(--accent);
 }
 
@@ -1227,14 +1250,14 @@ a { color: var(--accent); text-decoration: none; cursor: pointer; }
 /* ── Alert cards ── */
 .light .alert-card.severity-warning { border-left-color: var(--fair); background: rgba(230, 81, 0, 0.06); }
 .light .alert-card.severity-alert   { border-left-color: var(--poor); background: rgba(198, 40, 40, 0.06); }
-.light .alert-card.severity-watch   { border-left-color: var(--accent); background: rgba(183, 114, 34, 0.07); }
+.light .alert-card.severity-watch   { border-left-color: var(--accent); background: rgba(203, 75, 41, 0.07); }
 .light .alert-card.alert-warn       { border-left-color: var(--fair); background: rgba(230, 81, 0, 0.06); }
 .light .alert-card.alert-success    { border-left-color: var(--good); background: rgba(46, 125, 50, 0.06); }
 
 /* ── News ── */
 .light .news-item-dated  { border-left-color: var(--accent); }
-.light .news-flair       { background: rgba(183, 114, 34, 0.12); }
-.light .news-daterange   { background: rgba(183, 114, 34, 0.14); color: var(--accent); }
+.light .news-flair       { background: rgba(203, 75, 41, 0.12); }
+.light .news-daterange   { background: rgba(203, 75, 41, 0.14); color: var(--accent); }
 
 /* ── Form inputs ── */
 .light .form-input {
@@ -1246,8 +1269,9 @@ a { color: var(--accent); text-decoration: none; cursor: pointer; }
 
 /* ── Buttons ── */
 .light .btn-primary   { background: var(--accent); }
-.light .btn-secondary { background: rgba(183, 114, 34, 0.08); color: var(--accent); border-color: rgba(183, 114, 34, 0.22); }
+.light .btn-secondary { background: rgba(203, 75, 41, 0.08); color: var(--accent); border-color: rgba(203, 75, 41, 0.22); }
 .light .btn-ghost     { color: var(--text-secondary); }
+.light .alert-expand-btn { color: var(--accent); }
 
 /* ── Settings sections ── */
 .light .settings-section {
@@ -1259,9 +1283,9 @@ a { color: var(--accent); text-decoration: none; cursor: pointer; }
 
 /* ── Misc ── */
 .light .empty-state { color: var(--text-dim); }
-.light .news-list-scroll { scrollbar-color: rgba(183, 114, 34, 0.25) transparent; }
-.light .news-list-scroll::-webkit-scrollbar-thumb { background: rgba(183, 114, 34, 0.25); }
+.light .news-list-scroll { scrollbar-color: rgba(203, 75, 41, 0.25) transparent; }
+.light .news-list-scroll::-webkit-scrollbar-thumb { background: rgba(203, 75, 41, 0.25); }
 
 /* ── Kp inactive in light ── */
-.light .kp-inactive { background: #E4DDD8; border-color: rgba(93, 84, 59, 0.16); }
+.light .kp-inactive { background: #EDD9B8; border-color: rgba(105, 68, 37, 0.16); }
 

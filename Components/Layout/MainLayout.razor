@@ -1,4 +1,5 @@
 ﻿@inherits LayoutComponentBase
+@implements IDisposable
 @using GRRadio.Services
 @inject SettingsService SettingsSvc
 
@@ -55,3 +56,14 @@
         </NavLink>
     </nav>
 </div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        SettingsSvc.OnChanged += OnSettingsChanged;
+    }
+
+    private void OnSettingsChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => SettingsSvc.OnChanged -= OnSettingsChanged;
+}

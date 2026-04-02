@@ -69,6 +69,10 @@ public class NewsService(HttpClient http)
         }
     }
 
+    private static readonly Regex EmojiPattern = new(@"\p{So}|\p{Cs}|\uFE0F", RegexOptions.Compiled);
+    private static string? StripEmoji(string? text) =>
+        string.IsNullOrEmpty(text) ? text : EmojiPattern.Replace(text, "").Trim();
+
     private static bool IsAnnouncement(RedditPost post) =>
         (post.Flair?.Contains("announcement", StringComparison.OrdinalIgnoreCase) ?? false) ||
         post.Title.StartsWith("[announcement]", StringComparison.OrdinalIgnoreCase) ||
@@ -100,7 +104,7 @@ public class NewsService(HttpClient http)
                         .UtcDateTime,
                     Flair = d.TryGetProperty("link_flair_text", out var flair) &&
                             flair.ValueKind != JsonValueKind.Null
-                                ? flair.GetString() : null
+                                ? StripEmoji(flair.GetString()) : null
                 });
             }
         }
