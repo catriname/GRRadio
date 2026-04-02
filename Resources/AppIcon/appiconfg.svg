@@ -1,11 +1,35 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<svg width="456" height="456" viewBox="0 0 456 456" xmlns="http://www.w3.org/2000/svg">
-    <!-- Radio signal arcs -->
-    <line x1="228" y1="200" x2="228" y2="270" stroke="#cb4b29" stroke-width="14" stroke-linecap="round"/>
-    <circle cx="228" cy="283" r="12" fill="#cb4b29"/>
-    <path d="M 188,230 A 45,45 0 0 1 268,230" stroke="#cb4b29" stroke-width="14" fill="none" stroke-linecap="round"/>
-    <path d="M 162,205 A 75,75 0 0 1 294,205" stroke="#cb4b29" stroke-width="12" fill="none" stroke-linecap="round"/>
-    <path d="M 136,180 A 105,105 0 0 1 320,180" stroke="#cb4b29" stroke-width="10" fill="none" stroke-linecap="round"/>
-    <!-- GRR text -->
-    <text x="228" y="390" text-anchor="middle" font-family="sans-serif" font-weight="800" font-size="145" fill="#fcc33e">GRR</text>
+<svg width="456" height="456" viewBox="0 0 456 456" version="1.1" xmlns="http://www.w3.org/2000/svg">
+
+    <!-- "GR" text — condensed bold, matching logo style -->
+    <text x="32" y="318"
+          font-family="Impact, 'Arial Narrow', sans-serif"
+          font-weight="900"
+          font-size="210"
+          fill="#fcc33e"
+          letter-spacing="-4">GR</text>
+
+    <!-- Antenna-R symbol: rectangular frame with radio waves + tower inside -->
+    <!-- Frame (the "R" outline box) -->
+    <rect x="253" y="165" width="165" height="153"
+          fill="none" stroke="#fcc33e" stroke-width="9" rx="4"/>
+
+    <!-- Radio broadcast symbol, dot-and-arcs opening upward, centered at (335, 218) -->
+    <circle cx="335" cy="222" r="10" fill="#fcc33e"/>
+    <!-- Arc 1 (inner) -->
+    <path d="M 312,222 A 23,23 0 0 0 358,222"
+          fill="none" stroke="#fcc33e" stroke-width="8" stroke-linecap="round"/>
+    <!-- Arc 2 (outer) -->
+    <path d="M 295,222 A 40,40 0 0 0 375,222"
+          fill="none" stroke="#fcc33e" stroke-width="7" stroke-linecap="round"/>
+
+    <!-- A-frame tower below the broadcast symbol -->
+    <line x1="335" y1="246" x2="287" y2="318"
+          stroke="#fcc33e" stroke-width="8" stroke-linecap="round"/>
+    <line x1="335" y1="246" x2="383" y2="318"
+          stroke="#fcc33e" stroke-width="8" stroke-linecap="round"/>
+    <!-- Crossbar -->
+    <line x1="302" y1="291" x2="368" y2="291"
+          stroke="#fcc33e" stroke-width="7" stroke-linecap="round"/>
+
 </svg>
