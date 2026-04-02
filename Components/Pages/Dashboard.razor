@@ -1,6 +1,7 @@
 @using GRRadio.Models
 @using GRRadio.Services
 @inject SolarWeatherService SolarService
+@inject HfConditionsService HfService
 @inject SettingsService Settings
 @inject NavigationManager Nav
 
@@ -172,7 +173,7 @@ else if (loading)
             if (settings is { IsConfigured: true })
             {
                 var (lat, lon) = SettingsService.MaidenheadToLatLon(settings.GridSquare);
-                bands = PropagationEngine.Evaluate(solar, DateTime.UtcNow, lat, lon);
+                bands = await HfService.GetBandConditionsAsync(lat, lon);
 
                 var rawForecast = PropagationEngine.BuildForecast(fcastTask.Result, lat, lon);
                 forecastByDay = rawForecast

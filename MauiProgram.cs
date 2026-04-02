@@ -36,6 +36,11 @@ public static class MauiProgram
 			client.DefaultRequestHeaders.Add("User-Agent", "GRRadio/1.0 (ham radio propagation app)");
 			client.Timeout = TimeSpan.FromSeconds(20);
 		});
+		builder.Services.AddHttpClient<HfConditionsService>(client =>
+		{
+			client.DefaultRequestHeaders.Add("User-Agent", "GRRadio/1.0 (ham radio propagation app)");
+			client.Timeout = TimeSpan.FromSeconds(15);
+		});
 
 #if DEBUG
 		builder.Services.AddBlazorWebViewDeveloperTools();

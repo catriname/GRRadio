@@ -140,7 +140,14 @@ a { color: var(--accent); text-decoration: none; cursor: pointer; }
 
 .page-header h1 { font-size: 20px; font-weight: 700; }
 
-.page-title { display: flex; align-items: baseline; gap: 10px; }
+.page-title { display: flex; align-items: center; gap: 10px; }
+
+.brand-logo-small {
+    height: 32px;
+    width: 32px;
+    border-radius: 8px;
+    flex-shrink: 0;
+}
 
 .callsign {
     font-size: 22px;

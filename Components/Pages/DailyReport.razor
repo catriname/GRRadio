@@ -3,11 +3,13 @@
 @using GRRadio.Services
 @inject SettingsService SettingsSvc
 @inject SolarWeatherService SolarService
+@inject HfConditionsService HfService
 @inject SatelliteService SatService
 @inject NavigationManager Nav
 
 <div class="page-header">
     <div class="page-title">
+        <img src="grr_logo.png" class="brand-logo-small" alt="GRRadio" />
         <span class="callsign">@(settings?.Callsign is { Length: > 0 } c ? c : "GRRadio")</span>
         <span class="grid-badge">@(settings?.GridSquare is { Length: > 0 } g ? g : "Set Grid")</span>
     </div>
@@ -210,7 +212,7 @@
             if (settings.IsConfigured)
             {
                 var (lat, lon) = SettingsService.MaidenheadToLatLon(settings.GridSquare);
-                bands = PropagationEngine.Evaluate(solar, DateTime.UtcNow, lat, lon);
+                bands = await HfService.GetBandConditionsAsync(lat, lon);
 
                 if (settings.SatellitesEnabled)
                 {
