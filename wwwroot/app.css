@@ -15,6 +15,7 @@
     --text-dim:      #555;
     --border:        #2a2a2a;
     --nav-height:    64px;
+    --safe-top:      env(safe-area-inset-top, 0px);
     --safe-bottom:   env(safe-area-inset-bottom, 0px);
 
     --excellent: #00d2d3;
@@ -26,6 +27,32 @@
     --alert-warn:    #f39c12;
     --alert-error:   #e74c3c;
     --alert-success: #2ecc71;
+}
+
+/* ── Light Theme — Sage ───────────────────────────────────────────
+   Monochromatic sage/seafoam: palest mist → mid sage → deep teal.
+   All shades of one family. No contrast color pops.
+   ════════════════════════════════════════════════════════════════ */
+.light {
+    --bg-primary:    #DFF0ED;
+    --bg-card:       #CBE6E2;
+    --bg-card-hover: #B6DAD5;
+    --bg-nav:        #1F6B62;
+    --accent:        #2E8A80;
+    --accent-dim:    #5BAAA2;
+    --text-primary:  #0A2926;
+    --text-secondary:#1F5E58;
+    --text-dim:      #5A9690;
+    --border:        rgba(31, 107, 98, 0.18);
+
+    --excellent: #0097A7;
+    --good:      #2E7D32;
+    --fair:      #E65100;
+    --poor:      #C62828;
+    --closed:    #78909C;
+
+    --card-shadow: 0 2px 16px rgba(31, 107, 98, 0.12);
+    --card-radius: 14px;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -43,19 +70,30 @@ html, body {
 
 a { color: var(--accent); text-decoration: none; cursor: pointer; }
 
+/* ── Status bar spacer (rendered before #app in index.html) ─────── */
+.status-bar-safe-area {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: var(--safe-top);
+    background: var(--bg-primary);
+    z-index: 200;
+}
+
 /* ── App Shell ────────────────────────────────────────────────── */
 .app-shell {
     display: flex;
     flex-direction: column;
     height: 100vh;
     height: 100dvh;
+    background: var(--bg-primary);
+    color: var(--text-primary);
 }
 
 .app-content {
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
-    padding: 12px 12px calc(var(--nav-height) + var(--safe-bottom) + 12px);
+    padding: calc(12px + var(--safe-top)) 12px calc(var(--nav-height) + var(--safe-bottom) + 12px);
     -webkit-overflow-scrolling: touch;
 }
 
@@ -923,15 +961,16 @@ a { color: var(--accent); text-decoration: none; cursor: pointer; }
     align-items: center;
     justify-content: space-between;
     margin: 16px 0 10px;
+    padding: 14px 16px;
     cursor: pointer;
     user-select: none;
     -webkit-user-select: none;
 }
 
-.collapsible-header h2 { font-size: 16px; font-weight: 700; }
+.collapsible-header h2 { font-size: 20px; font-weight: 700; }
 
 .collapse-chevron {
-    font-size: 11px;
+    font-size: 18px;
     color: var(--text-dim);
     transition: color 0.15s;
 }
@@ -1110,3 +1149,127 @@ a { color: var(--accent); text-decoration: none; cursor: pointer; }
     font-size: 10px;
     color: var(--accent);
 }
+
+
+/* ═══════════════════════════════════════════════════════════════
+   LIGHT MODE OVERRIDES — DAYBREAK
+   Violet → periwinkle → sage. Cards float. Borders dissolve.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Nav: sage teal with white icons/text ── */
+.light .bottom-nav {
+    border-top: none;
+    box-shadow: 0 -2px 16px rgba(31, 107, 98, 0.20);
+}
+
+.light .nav-item { color: rgba(255, 255, 255, 0.65); }
+.light .nav-item.active, .light .nav-item:hover { color: #FFFFFF; }
+
+/* ── Floating cards ── */
+.light .band-card,
+.light .solar-card,
+.light .alert-card,
+.light .report-pass-item,
+.light .news-item,
+.light .storm-meter,
+.light .watchlist-item,
+.light .dx-date-chip {
+    box-shadow: var(--card-shadow);
+    border-color: transparent;
+}
+
+.light .band-card  { border-radius: var(--card-radius); border-top-width: 3px; border-top-style: solid; }
+.light .solar-card { border-radius: var(--card-radius); }
+.light .alert-card { border-radius: var(--card-radius); border-left-width: 3px; border-left-style: solid; }
+.light .news-item  { border-radius: var(--card-radius); }
+
+/* ── Greeting: sage mist → mid sage → deep teal ── */
+.light .daily-header {
+    background: linear-gradient(150deg, #D0EDE9 0%, #8ECAC3 40%, #3D9B92 75%, #1F6B62 100%);
+    border-radius: 20px;
+    padding: 24px 18px 20px;
+    margin-bottom: 8px;
+    box-shadow: 0 6px 28px rgba(31, 107, 98, 0.18);
+}
+
+/* ── Collapsible section headers ── */
+.light .collapsible-header {
+    background: rgba(31, 107, 98, 0.08);
+    border-radius: 10px;
+}
+.light .collapsible-header h2 { color: var(--text-primary); }
+
+/* ── Section headers ── */
+.light .section-header h2 { color: var(--text-secondary); }
+
+/* ── Page header ── */
+.light .page-header h1 { color: var(--text-primary); }
+
+.light .grid-badge {
+    background: rgba(46, 138, 128, 0.14);
+    border-color: rgba(46, 138, 128, 0.28);
+    color: var(--accent);
+}
+
+.light .refresh-btn {
+    background: #FFFFFF;
+    box-shadow: 0 2px 10px rgba(22, 32, 48, 0.10);
+    border-color: transparent;
+}
+
+/* ── Solar card header tints ── */
+.light .solar-card-header.condition-excellent { background: rgba(14, 138, 130, 0.10); }
+.light .solar-card-header.condition-good      { background: rgba(26, 122, 56,  0.10); }
+.light .solar-card-header.condition-fair      { background: rgba(192, 96,  48, 0.10); }
+.light .solar-card-header.condition-poor      { background: rgba(176, 32,  32, 0.10); }
+
+/* ── Condition badges ── */
+.light .condition-badge.condition-excellent { background: rgba(14, 138, 130, 0.12); }
+.light .condition-badge.condition-good      { background: rgba(26, 122, 56,  0.12); }
+.light .condition-badge.condition-fair      { background: rgba(192, 96,  48, 0.12); }
+.light .condition-badge.condition-poor      { background: rgba(176, 32,  32, 0.12); }
+
+/* ── Kp scale ── */
+.light .kp-inactive { background: #EDE8F0; border-color: rgba(180, 100, 130, 0.15); }
+
+/* ── Alert cards ── */
+.light .alert-card.severity-warning { border-left-color: var(--fair); background: rgba(230, 81, 0, 0.06); }
+.light .alert-card.severity-alert   { border-left-color: var(--poor); background: rgba(198, 40, 40, 0.06); }
+.light .alert-card.severity-watch   { border-left-color: var(--accent); background: rgba(46, 138, 128, 0.08); }
+.light .alert-card.alert-warn       { border-left-color: var(--fair); background: rgba(230, 81, 0, 0.06); }
+.light .alert-card.alert-success    { border-left-color: var(--good); background: rgba(46, 125, 50, 0.06); }
+
+/* ── News ── */
+.light .news-item-dated  { border-left-color: var(--accent); }
+.light .news-flair       { background: rgba(46, 138, 128, 0.14); }
+.light .news-daterange   { background: rgba(46, 138, 128, 0.16); color: var(--accent); }
+
+/* ── Form inputs ── */
+.light .form-input {
+    background: #FFFFFF;
+    border-color: rgba(180, 100, 130, 0.22);
+    color: var(--text-primary);
+}
+.light .form-input:focus { border-color: var(--accent); }
+
+/* ── Buttons ── */
+.light .btn-primary   { background: var(--accent); }
+.light .btn-secondary { background: rgba(46, 138, 128, 0.10); color: var(--accent); border-color: rgba(46, 138, 128, 0.26); }
+.light .btn-ghost     { color: var(--text-secondary); }
+
+/* ── Settings sections ── */
+.light .settings-section {
+    background: var(--bg-card);
+    box-shadow: var(--card-shadow);
+    border-color: transparent;
+    border-radius: var(--card-radius);
+}
+
+/* ── Misc ── */
+.light .empty-state { color: var(--text-dim); }
+.light .news-list-scroll { scrollbar-color: rgba(46, 138, 128, 0.30) transparent; }
+.light .news-list-scroll::-webkit-scrollbar-thumb { background: rgba(46, 138, 128, 0.30); }
+
+/* ── Kp inactive in light ── */
+.light .kp-inactive { background: #C0DDD9; border-color: rgba(31, 107, 98, 0.16); }
+

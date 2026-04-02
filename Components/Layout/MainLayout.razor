@@ -1,6 +1,8 @@
 ﻿@inherits LayoutComponentBase
+@using GRRadio.Services
+@inject SettingsService SettingsSvc
 
-<div class="app-shell">
+<div class="app-shell @(SettingsSvc.Load().DarkMode ? "" : "light")">
     <main class="app-content">
         @Body
     </main>
