@@ -1,6 +1,9 @@
 ﻿@inherits LayoutComponentBase
+@implements IDisposable
+@using GRRadio.Services
+@inject SettingsService SettingsSvc
 
-<div class="app-shell">
+<div class="app-shell @(SettingsSvc.Load().DarkMode ? "" : "light")">
     <main class="app-content">
         @Body
     </main>
@@ -53,3 +56,14 @@
         </NavLink>
     </nav>
 </div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        SettingsSvc.OnChanged += OnSettingsChanged;
+    }
+
+    private void OnSettingsChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => SettingsSvc.OnChanged -= OnSettingsChanged;
+}
