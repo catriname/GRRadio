@@ -12,28 +12,33 @@
 <!-- Solar Bar -->
 @if (solar is not null)
 {
-    <div class="solar-bar condition-@solar.OverallCondition.ToString().ToLower()">
-        <div class="solar-metric">
-            <span class="metric-label">SFI</span>
-            <span class="metric-value">@solar.SolarFluxIndex.ToString("F0")</span>
+    var cond = solar.OverallCondition.ToString().ToLower();
+    <div class="solar-card">
+        <div class="solar-card-header condition-@cond">
+            <span class="solar-card-title">Solar Conditions</span>
+            <span class="condition-badge condition-@cond">@solar.OverallCondition</span>
         </div>
-        <div class="solar-metric">
-            <span class="metric-label">Kp</span>
-            <span class="metric-value">@solar.KIndex.ToString("F1")</span>
+        <div class="solar-card-metrics">
+            <div class="solar-metric">
+                <span class="metric-label">SFI</span>
+                <span class="metric-value">@solar.SolarFluxIndex.ToString("F0")</span>
+            </div>
+            <div class="solar-metric">
+                <span class="metric-label">Kp</span>
+                <span class="metric-value">@solar.KIndex.ToString("F1")</span>
+            </div>
+            <div class="solar-metric">
+                <span class="metric-label">Wind</span>
+                <span class="metric-value">@solar.SolarWindSpeed.ToString("F0")<span class="metric-unit">km/s</span></span>
+            </div>
+            <div class="solar-metric">
+                <span class="metric-label">Bz</span>
+                <span class="metric-value @(solar.BzComponent < -5 ? "bz-south" : solar.BzComponent < 0 ? "bz-weak-south" : "bz-north")">
+                    @solar.BzComponent.ToString("F1")<span class="metric-unit">nT</span>
+                </span>
+            </div>
         </div>
-        <div class="solar-metric">
-            <span class="metric-label">Wind</span>
-            <span class="metric-value">@solar.SolarWindSpeed.ToString("F0") km/s</span>
-        </div>
-        <div class="solar-metric">
-            <span class="metric-label">Bz</span>
-            <span class="metric-value @(solar.BzComponent < -5 ? "bz-south" : "bz-north")">@solar.BzComponent.ToString("F1")</span>
-        </div>
-        <div class="solar-status">
-            <span class="condition-badge condition-@solar.OverallCondition.ToString().ToLower()">
-                @solar.OverallCondition
-            </span>
-        </div>
+        <div class="solar-card-summary">@SolarSummary(solar)</div>
     </div>
 }
 
@@ -204,6 +209,47 @@ else
         9      => "G5 Extreme Storm",
         _      => "Unknown"
     };
+
+    private static string SolarSummary(SolarData s)
+    {
+        var parts = new List<string>();
+
+        // SFI
+        if (s.SolarFluxIndex >= 150)
+            parts.Add("High solar flux — high bands (10m–15m) wide open for DX");
+        else if (s.SolarFluxIndex >= 120)
+            parts.Add("Moderate solar flux — good conditions on 15m–20m");
+        else if (s.SolarFluxIndex < 90)
+            parts.Add("Low solar flux — high bands likely closed, favor 40m/80m");
+
+        // Kp
+        if (s.KIndex >= 7)
+            parts.Add("severe geomagnetic storm — HF propagation heavily degraded");
+        else if (s.KIndex >= 5)
+            parts.Add("geomagnetic storm in progress — DX difficult on all bands");
+        else if (s.KIndex >= 4)
+            parts.Add("elevated geomagnetic activity — polar paths affected");
+        else if (s.KIndex <= 1)
+            parts.Add("very quiet geomagnetic field — ideal DX conditions");
+
+        // Bz
+        if (s.BzComponent < -10)
+            parts.Add("strong southward Bz — storm conditions likely developing");
+        else if (s.BzComponent < -5)
+            parts.Add("southward Bz — watch for geomagnetic disturbance");
+        else if (s.BzComponent < 0)
+            parts.Add($"Bz slightly southward ({s.BzComponent:F1} nT) — monitor for changes");
+
+        // Wind
+        if (s.SolarWindSpeed > 600)
+            parts.Add("fast solar wind — geomagnetic unsettled");
+
+        if (parts.Count == 0)
+            return "Conditions are quiet — good time to operate.";
+
+        parts[0] = char.ToUpper(parts[0][0]) + parts[0][1..];
+        return string.Join("; ", parts) + ".";
+    }
 
     private static string FormatAlertTime(string raw)
     {

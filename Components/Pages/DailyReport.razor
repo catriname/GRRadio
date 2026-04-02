@@ -147,36 +147,6 @@
     }
 }
 
-<!-- ── 3-Day Forecast (collapsible) ─────────────────────────── -->
-@if (forecastByDay.Count > 0)
-{
-    <div class="collapsible-header" @onclick="() => showForecast = !showForecast">
-        <h2>3-Day Forecast</h2>
-        <span class="collapse-chevron">@(showForecast ? "▲" : "▼")</span>
-    </div>
-
-    @if (showForecast)
-    {
-        @foreach (var (day, slots) in forecastByDay)
-        {
-            <div class="forecast-day">
-                <div class="forecast-day-label">@day</div>
-                <div class="forecast-slots">
-                    @foreach (var slot in slots)
-                    {
-                        var best = slot.Conditions.MaxBy(c => (int)c.Rating);
-                        <div class="forecast-slot @(best?.Rating.ToCssClass() ?? "rating-closed")
-                                                 @(slot.Hour < DateTime.UtcNow ? "past" : "")">
-                            <div class="slot-time">@slot.Hour.ToLocalTime().ToString("HH")</div>
-                            <div class="slot-band">@(best?.Band ?? "—")</div>
-                            <div class="slot-icon">@(best?.Rating.ToIcon() ?? "✕")</div>
-                        </div>
-                    }
-                </div>
-            </div>
-        }
-    }
-}
 
 @if (!string.IsNullOrEmpty(errorMessage))
 {
@@ -188,15 +158,13 @@
     private SolarData? solar;
     private List<BandCondition> bands = [];
     private List<SpaceWeatherAlert> alerts = [];
-    private Dictionary<string, List<BandForecast>> forecastByDay = [];
     private List<SatellitePass> passes = [];
     private int passLimit = 5;
     private bool loading = true;
     private string errorMessage = "";
 
-    private bool showPasses   = true;
-    private bool showBands    = true;
-    private bool showForecast = true;
+    private bool showPasses = true;
+    private bool showBands  = true;
 
     private string timeOfDay => DateTime.Now.Hour switch
     {
@@ -233,9 +201,8 @@
 
             var solarTask  = SolarService.GetCurrentAsync();
             var alertsTask = SolarService.GetAlertsAsync();
-            var fcastTask  = SolarService.GetForecastAsync();
 
-            await Task.WhenAll(solarTask, alertsTask, fcastTask);
+            await Task.WhenAll(solarTask, alertsTask);
 
             solar  = solarTask.Result;
             alerts = alertsTask.Result;
@@ -244,11 +211,6 @@
             {
                 var (lat, lon) = SettingsService.MaidenheadToLatLon(settings.GridSquare);
                 bands = PropagationEngine.Evaluate(solar, DateTime.UtcNow, lat, lon);
-
-                var rawForecast = PropagationEngine.BuildForecast(fcastTask.Result, lat, lon);
-                forecastByDay = rawForecast
-                    .GroupBy(f => f.Hour.ToLocalTime().ToString("ddd, MMM d"))
-                    .ToDictionary(g => g.Key, g => g.ToList());
 
                 if (settings.SatellitesEnabled)
                 {
@@ -275,4 +237,5 @@
             loading = false;
         }
     }
+
 }

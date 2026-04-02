@@ -158,28 +158,52 @@ a { color: var(--accent); text-decoration: none; cursor: pointer; }
 .section-sub { font-size: 12px; color: var(--text-dim); }
 
 /* ── Solar Bar ────────────────────────────────────────────────── */
-.solar-bar {
-    display: flex;
-    align-items: center;
+.solar-card {
     background: var(--bg-card);
     border-radius: 10px;
     border: 1px solid var(--border);
-    padding: 10px 12px;
     margin-bottom: 8px;
-    flex-wrap: wrap;
-    row-gap: 6px;
-    border-left: 3px solid var(--border);
+    overflow: hidden;
 }
 
-.solar-bar.condition-excellent { border-left-color: var(--excellent); }
-.solar-bar.condition-good      { border-left-color: var(--good); }
-.solar-bar.condition-fair      { border-left-color: var(--fair); }
-.solar-bar.condition-poor      { border-left-color: var(--poor); }
-.solar-bar.condition-storm     { border-left-color: var(--poor); animation: pulse-red 2s infinite; }
+.solar-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: rgba(255,255,255,0.04);
+}
 
-@keyframes pulse-red {
-    0%, 100% { border-left-color: var(--poor); }
-    50%       { border-left-color: #ff6b6b; }
+.solar-card-header.condition-excellent { background: rgba(0,210,211,0.15); }
+.solar-card-header.condition-good      { background: rgba(46,204,113,0.15); }
+.solar-card-header.condition-fair      { background: rgba(243,156,18,0.15); }
+.solar-card-header.condition-poor      { background: rgba(231,76,60,0.15); }
+.solar-card-header.condition-storm     { background: rgba(231,76,60,0.25); animation: pulse-bg 2s infinite; }
+
+@keyframes pulse-bg {
+    0%, 100% { background: rgba(231,76,60,0.25); }
+    50%       { background: rgba(231,76,60,0.40); }
+}
+
+.solar-card-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    letter-spacing: 0.2px;
+}
+
+.solar-card-metrics {
+    display: flex;
+    align-items: center;
+    padding: 10px 12px;
+    gap: 4px;
+}
+
+.solar-card-summary {
+    font-size: 12px;
+    color: var(--text-secondary);
+    padding: 0 12px 10px;
+    line-height: 1.5;
 }
 
 .solar-metric {
@@ -204,10 +228,17 @@ a { color: var(--accent); text-decoration: none; cursor: pointer; }
     font-variant-numeric: tabular-nums;
 }
 
-.bz-south { color: var(--poor); }
-.bz-north { color: var(--excellent); }
+.metric-unit {
+    font-size: 9px;
+    font-weight: 400;
+    color: var(--text-dim);
+    margin-left: 1px;
+    vertical-align: baseline;
+}
 
-.solar-status { flex: 0 0 auto; }
+.bz-south      { color: var(--poor); }
+.bz-weak-south { color: var(--fair); }
+.bz-north      { color: var(--excellent); }
 
 .condition-badge {
     font-size: 11px;
@@ -287,47 +318,6 @@ a { color: var(--accent); text-decoration: none; cursor: pointer; }
 .rating-closed .band-rating-label { color: var(--text-dim); }
 
 /* ── Forecast Timeline ────────────────────────────────────────── */
-.forecast-day { margin-bottom: 12px; }
-
-.forecast-day-label {
-    font-size: 12px;
-    font-weight: 700;
-    color: var(--text-secondary);
-    margin-bottom: 6px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.forecast-slots {
-    display: flex;
-    gap: 4px;
-    overflow-x: auto;
-    padding-bottom: 4px;
-    scrollbar-width: none;
-}
-
-.forecast-slots::-webkit-scrollbar { display: none; }
-
-.forecast-slot {
-    flex: 0 0 52px;
-    background: var(--bg-card);
-    border-radius: 8px;
-    border: 1px solid var(--border);
-    border-top: 2px solid var(--border);
-    padding: 6px 4px;
-    text-align: center;
-}
-
-.forecast-slot.past { opacity: 0.35; }
-.slot-time { font-size: 11px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
-.slot-band { font-size: 13px; font-weight: 800; margin: 2px 0; }
-.slot-icon { font-size: 11px; }
-
-.forecast-slot.rating-excellent { border-top-color: var(--excellent); }
-.forecast-slot.rating-good      { border-top-color: var(--good); }
-.forecast-slot.rating-fair      { border-top-color: var(--fair); }
-.forecast-slot.rating-poor      { border-top-color: var(--poor); }
-.forecast-slot.rating-closed    { border-top-color: var(--closed); opacity: 0.4; }
 
 /* ── Satellite Passes ─────────────────────────────────────────── */
 .pass-card {
