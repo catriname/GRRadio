@@ -1,0 +1,241 @@
+@page "/"
+@using GRRadio.Models
+@using GRRadio.Services
+@inject SettingsService SettingsSvc
+@inject SolarWeatherService SolarService
+@inject SatelliteService SatService
+@inject NavigationManager Nav
+
+<div class="page-header">
+    <div class="page-title">
+        <span class="callsign">@(settings?.Callsign is { Length: > 0 } c ? c : "GRRadio")</span>
+        <span class="grid-badge">@(settings?.GridSquare is { Length: > 0 } g ? g : "Set Grid")</span>
+    </div>
+    <button class="refresh-btn" @onclick="LoadDataAsync" disabled="@loading">
+        @if (loading) { <span class="spinner">⟳</span> } else { <span>⟳</span> }
+    </button>
+</div>
+
+@if (!settings!.IsConfigured)
+{
+    <div class="alert-card alert-warn">
+        <strong>Setup required</strong> — enter your callsign and grid square in
+        <a @onclick='() => Nav.NavigateTo("/settings")' class="link">Settings</a>.
+    </div>
+}
+
+<!-- Always-visible greeting -->
+<div class="daily-header">
+    <div class="daily-time-icon">
+        @if (timeOfDay == "morning")
+        {
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M7 17a5 5 0 0 1 10 0"/>
+                <line x1="12" y1="9" x2="12" y2="7"/>
+                <line x1="5.5" y1="10.5" x2="7" y2="12"/>
+                <line x1="18.5" y1="10.5" x2="17" y2="12"/>
+                <line x1="2" y1="17" x2="22" y2="17"/>
+                <line x1="12" y1="5" x2="12" y2="3"/>
+                <line x1="6" y1="6" x2="7.5" y2="7.5"/>
+                <line x1="18" y1="6" x2="16.5" y2="7.5"/>
+            </svg>
+        }
+        else if (timeOfDay == "afternoon")
+        {
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="5"/>
+                <line x1="12" y1="1" x2="12" y2="3"/>
+                <line x1="12" y1="21" x2="12" y2="23"/>
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+                <line x1="1" y1="12" x2="3" y2="12"/>
+                <line x1="21" y1="12" x2="23" y2="12"/>
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+            </svg>
+        }
+        else if (timeOfDay == "evening")
+        {
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M7 17a5 5 0 0 1 10 0"/>
+                <line x1="12" y1="11" x2="12" y2="9"/>
+                <line x1="5.5" y1="12.5" x2="7" y2="14"/>
+                <line x1="18.5" y1="12.5" x2="17" y2="14"/>
+                <line x1="2" y1="17" x2="22" y2="17"/>
+                <line x1="2" y1="20" x2="22" y2="20"/>
+            </svg>
+        }
+        else
+        {
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+        }
+    </div>
+    <div class="daily-header-text">
+        <div class="daily-greeting-line">@greetingWord, @(settings?.Callsign is { Length: > 0 } cs ? cs : "operator").</div>
+        <div class="daily-date-line">@DateTime.Now.ToString("dddd, MMMM d")</div>
+    </div>
+</div>
+
+<!-- ── Band Conditions (collapsible) ────────────────────────── -->
+<div class="collapsible-header" @onclick="() => showBands = !showBands">
+    <h2>Band Conditions</h2>
+    <span class="collapse-chevron">@(showBands ? "▲" : "▼")</span>
+</div>
+
+@if (showBands)
+{
+    @if (bands.Count > 0)
+    {
+        <div class="band-grid">
+            @foreach (var band in bands)
+            {
+                <div class="band-card @band.Rating.ToCssClass()">
+                    <div class="band-name">@band.Band</div>
+                    <div class="band-rating-icon">@band.Rating.ToIcon()</div>
+                    <div class="band-rating-label">@band.Rating.ToLabel()</div>
+                    <div class="band-summary">@band.Summary</div>
+                    @if (band.GoodRegions.Count > 0)
+                    {
+                        <div class="band-regions">@string.Join(" · ", band.GoodRegions)</div>
+                    }
+                    @if (!string.IsNullOrEmpty(band.BestMode))
+                    {
+                        <div class="band-mode">@band.BestMode</div>
+                    }
+                </div>
+            }
+        </div>
+    }
+    else if (loading)
+    {
+        <div class="loading-grid">
+            @for (int i = 0; i < 9; i++) { <div class="band-card skeleton"></div> }
+        </div>
+    }
+}
+
+<!-- ── Upcoming Passes (collapsible) ────────────────────────── -->
+@if (settings!.SatellitesEnabled && settings.IsConfigured && passes.Count > 0)
+{
+    var visiblePasses = passes.Where(p => p.IsUpcoming).OrderBy(p => p.AosTime).ToList();
+
+    <div class="collapsible-header" @onclick="() => showPasses = !showPasses">
+        <h2>Upcoming Passes</h2>
+        <span class="collapse-chevron">@(showPasses ? "▲" : "▼")</span>
+    </div>
+
+    @if (showPasses)
+    {
+        <div class="report-pass-list">
+            @foreach (var p in visiblePasses.Take(passLimit))
+            {
+                <div class="report-pass-item">
+                    <div class="report-pass-sat">@p.SatelliteName</div>
+                    <div class="report-pass-desc">@p.AosTimeLocal → @p.LosTimeLocal · @p.AosDirection to @p.LosDirection</div>
+                    <div class="report-pass-badge @p.PassQualityCss">@p.PassQuality · @p.MaxElevationStr</div>
+                </div>
+            }
+        </div>
+        @if (visiblePasses.Count > passLimit)
+        {
+            <button class="btn-ghost show-more-btn" @onclick="() => passLimit += 5">
+                Show more (@(visiblePasses.Count - passLimit) remaining)
+            </button>
+        }
+    }
+}
+
+
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert-card alert-error">@errorMessage</div>
+}
+
+@code {
+    private UserSettings? settings;
+    private SolarData? solar;
+    private List<BandCondition> bands = [];
+    private List<SpaceWeatherAlert> alerts = [];
+    private List<SatellitePass> passes = [];
+    private int passLimit = 5;
+    private bool loading = true;
+    private string errorMessage = "";
+
+    private bool showPasses = true;
+    private bool showBands  = true;
+
+    private string timeOfDay => DateTime.Now.Hour switch
+    {
+        >= 5 and < 12  => "morning",
+        >= 12 and < 17 => "afternoon",
+        >= 17 and < 21 => "evening",
+        _              => "night"
+    };
+
+    private string greetingWord => timeOfDay switch
+    {
+        "morning"   => "Good morning",
+        "afternoon" => "Good afternoon",
+        "evening"   => "Good evening",
+        _           => "Good night"
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        settings = SettingsSvc.Load();
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        loading = true;
+        errorMessage = "";
+        passLimit = 5;
+        StateHasChanged();
+
+        try
+        {
+            settings = SettingsSvc.Load();
+
+            var solarTask  = SolarService.GetCurrentAsync();
+            var alertsTask = SolarService.GetAlertsAsync();
+
+            await Task.WhenAll(solarTask, alertsTask);
+
+            solar  = solarTask.Result;
+            alerts = alertsTask.Result;
+
+            if (settings.IsConfigured)
+            {
+                var (lat, lon) = SettingsService.MaidenheadToLatLon(settings.GridSquare);
+                bands = PropagationEngine.Evaluate(solar, DateTime.UtcNow, lat, lon);
+
+                if (settings.SatellitesEnabled)
+                {
+                    try
+                    {
+                        passes = await SatService.GetPassesAsync(
+                            settings.SatelliteWatchlist, lat, lon,
+                            altKm: 0, minElevDeg: settings.MinSatElevation, hoursAhead: 24);
+                    }
+                    catch
+                    {
+                        errorMessage = "Satellite pass data unavailable.";
+                    }
+                }
+
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Unable to fetch solar data: {ex.Message}";
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+}

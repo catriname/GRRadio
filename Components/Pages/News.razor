@@ -1,0 +1,218 @@
+@page "/news"
+@using GRRadio.Models
+@using GRRadio.Services
+@inject NewsService NewsSvc
+@inject SettingsService SettingsSvc
+
+<div class="page-header">
+    <h1>News</h1>
+    <button class="refresh-btn" @onclick="LoadAsync" disabled="@loading">
+        @if (loading) { <span class="spinner">⟳</span> } else { <span>⟳</span> }
+    </button>
+</div>
+
+<!-- ── Reddit ────────────────────────────────────────────────── -->
+<div class="collapsible-header" @onclick="() => showReddit = !showReddit">
+    <h2>Ham Radio Community</h2>
+    <span class="collapse-chevron">@(showReddit ? "▲" : "▼")</span>
+</div>
+
+@if (showReddit)
+{
+    @if (loadingReddit)
+    {
+        <div class="news-loading">Loading posts…</div>
+    }
+    else if (!string.IsNullOrEmpty(redditError))
+    {
+        <div class="alert-card alert-warn">@redditError</div>
+    }
+    else if (redditPosts.Count == 0)
+    {
+        <div class="empty-state">No posts found. Check your subreddits in Settings.</div>
+    }
+    else
+    {
+        <div class="news-list-scroll">
+            <div class="news-list">
+                @foreach (var post in redditPosts.Take(redditLimit))
+                {
+                    <div class="news-item" @onclick="() => OpenUrl(post.Permalink)">
+                        <div class="news-item-meta">
+                            <span class="news-subreddit">r/@post.Subreddit</span>
+                            @if (!string.IsNullOrEmpty(post.Flair))
+                            {
+                                <span class="news-flair">@post.Flair</span>
+                            }
+                            <span class="news-age">@post.TimeAgo</span>
+                        </div>
+                        <div class="news-item-title">@post.Title</div>
+                        <div class="news-item-stats">
+                            <span class="news-score">▲ @post.Score</span>
+                            <span class="news-comments">@post.CommentCount comments</span>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+        @if (redditPosts.Count > redditLimit)
+        {
+            <button class="btn-ghost show-more-btn" @onclick="() => redditLimit += 10">
+                Show more (@(redditPosts.Count - redditLimit) remaining)
+            </button>
+        }
+    }
+}
+
+<!-- ── DXpeditions ───────────────────────────────────────────── -->
+<div class="collapsible-header" @onclick="() => showDx = !showDx">
+    <h2>DXpeditions</h2>
+    <span class="collapse-chevron">@(showDx ? "▲" : "▼")</span>
+</div>
+
+@if (showDx)
+{
+    @if (loadingDx)
+    {
+        <div class="news-loading">Loading DX news…</div>
+    }
+    else if (!string.IsNullOrEmpty(dxError))
+    {
+        <div class="alert-card alert-warn">@dxError</div>
+    }
+    else if (dxItems.Count == 0)
+    {
+        <div class="empty-state">No DX news available.</div>
+    }
+    else
+    {
+        var datedItems = dxItems.Where(i => i.HasDateRange).ToList();
+        if (datedItems.Count > 0)
+        {
+            <div class="dx-date-chips">
+                <svg class="dx-date-chips-icon" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                    <line x1="16" y1="2" x2="16" y2="6"/>
+                    <line x1="8" y1="2" x2="8" y2="6"/>
+                    <line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+                @foreach (var dated in datedItems)
+                {
+                    <button class="dx-date-chip" @onclick="() => OpenUrl(dated.Url)">
+                        <span class="dx-chip-title">@dated.ShortTitle</span>
+                        <span class="dx-chip-date">@dated.DateRange</span>
+                    </button>
+                }
+            </div>
+        }
+        var cutoff = DateTime.UtcNow.AddDays(-14);
+        var recentDx = dxItems.Where(i => i.PublishedDate >= cutoff).ToList();
+        var olderDx  = dxItems.Where(i => i.PublishedDate < cutoff).ToList();
+        var visibleDx = dxShowAll ? dxItems : recentDx;
+
+        <div class="news-list-scroll">
+            <div class="news-list">
+                @foreach (var item in visibleDx)
+                {
+                    <div class="news-item @(item.HasDateRange ? "news-item-dated" : "")" @onclick="() => OpenUrl(item.Url)">
+                        <div class="news-item-meta">
+                            <span class="news-subreddit">dxnews.com</span>
+                            @if (item.HasDateRange)
+                            {
+                                <span class="news-daterange">@item.DateRange</span>
+                            }
+                            <span class="news-age">@item.DateLabel</span>
+                        </div>
+                        <div class="news-item-title">@item.Title</div>
+                        @if (!string.IsNullOrEmpty(item.Description))
+                        {
+                            <div class="news-item-desc">
+                                @(item.Description.Length > 120
+                                    ? item.Description[..120] + "…"
+                                    : item.Description)
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+        @if (!dxShowAll && olderDx.Count > 0)
+        {
+            <button class="btn-ghost show-more-btn" @onclick="() => dxShowAll = true">
+                Show more (@olderDx.Count older)
+            </button>
+        }
+    }
+}
+
+@code {
+    private List<RedditPost> redditPosts = [];
+    private List<DxNewsItem> dxItems = [];
+    private bool loading => loadingReddit || loadingDx;
+    private bool loadingReddit = true;
+    private bool loadingDx = true;
+    private string redditError = "";
+    private string dxError = "";
+    private bool showReddit = true;
+    private bool showDx = true;
+    private int redditLimit = 10;
+    private bool dxShowAll = false;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        loadingReddit = true;
+        loadingDx = true;
+        redditError = "";
+        dxError = "";
+        redditLimit = 10;
+        dxShowAll = false;
+        StateHasChanged();
+
+        var settings = SettingsSvc.Load();
+        var redditTask = LoadRedditAsync(settings.NewsSubreddits);
+        var dxTask = LoadDxAsync();
+        await Task.WhenAll(redditTask, dxTask);
+    }
+
+    private async Task LoadRedditAsync(List<string> subreddits)
+    {
+        try
+        {
+            redditPosts = await NewsSvc.GetRedditPostsAsync(subreddits);
+        }
+        catch (Exception ex)
+        {
+            redditError = $"Could not load Reddit posts: {ex.Message}";
+        }
+        finally
+        {
+            loadingReddit = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadDxAsync()
+    {
+        try
+        {
+            dxItems = await NewsSvc.GetDxNewsAsync();
+        }
+        catch (Exception ex)
+        {
+            dxError = $"Could not load DX news: {ex.Message}";
+        }
+        finally
+        {
+            loadingDx = false;
+            StateHasChanged();
+        }
+    }
+
+    private static async void OpenUrl(string url)
+    {
+        if (!string.IsNullOrEmpty(url))
+            await Browser.Default.OpenAsync(url, BrowserLaunchMode.SystemPreferred);
+    }
+}

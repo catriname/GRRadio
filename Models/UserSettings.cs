@@ -8,8 +8,11 @@ public class UserSettings
     public double Longitude { get; set; }
     public int MinSatElevation { get; set; } = 10;
     public List<string> SatelliteWatchlist { get; set; } = DefaultWatchlist();
+    public List<string> NewsSubreddits { get; set; } = ["hamradio", "amateurradio"];
     public bool AlertsEnabled { get; set; } = true;
     public bool DarkMode { get; set; } = true;
+    public bool DailyReportEnabled { get; set; } = false;
+    public bool SatellitesEnabled { get; set; } = false;
 
     public bool IsConfigured => !string.IsNullOrWhiteSpace(Callsign) && !string.IsNullOrWhiteSpace(GridSquare);
 

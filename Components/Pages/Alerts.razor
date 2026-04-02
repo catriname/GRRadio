@@ -1,12 +1,46 @@
 @page "/alerts"
 @using GRRadio.Models
 @using GRRadio.Services
+@using System.Text.RegularExpressions
 @inject SolarWeatherService SolarService
 
 <div class="page-header">
-    <h1>Space Weather Alerts</h1>
+    <h1>Weather</h1>
     <button class="refresh-btn" @onclick="Refresh">⟳</button>
 </div>
+
+<!-- Solar Bar -->
+@if (solar is not null)
+{
+    var cond = solar.OverallCondition.ToString().ToLower();
+    <div class="solar-card">
+        <div class="solar-card-header condition-@cond">
+            <span class="solar-card-title">Solar Conditions</span>
+            <span class="condition-badge condition-@cond">@solar.OverallCondition</span>
+        </div>
+        <div class="solar-card-metrics">
+            <div class="solar-metric">
+                <span class="metric-label">SFI</span>
+                <span class="metric-value">@solar.SolarFluxIndex.ToString("F0")</span>
+            </div>
+            <div class="solar-metric">
+                <span class="metric-label">Kp</span>
+                <span class="metric-value">@solar.KIndex.ToString("F1")</span>
+            </div>
+            <div class="solar-metric">
+                <span class="metric-label">Wind</span>
+                <span class="metric-value">@solar.SolarWindSpeed.ToString("F0")<span class="metric-unit">km/s</span></span>
+            </div>
+            <div class="solar-metric">
+                <span class="metric-label">Bz</span>
+                <span class="metric-value @(solar.BzComponent < -5 ? "bz-south" : solar.BzComponent < 0 ? "bz-weak-south" : "bz-north")">
+                    @solar.BzComponent.ToString("F1")<span class="metric-unit">nT</span>
+                </span>
+            </div>
+        </div>
+        <div class="solar-card-summary">@SolarSummary(solar)</div>
+    </div>
+}
 
 @if (loading)
 {
@@ -53,8 +87,8 @@ else
 
     <!-- NOAA Alerts -->
     <div class="section-header">
-        <h2>NOAA Alerts</h2>
-        <span class="section-sub">@alerts.Count active</span>
+        <h2>Space Weather Alerts</h2>
+        <span class="section-sub">@alerts.Count from NOAA SWPC</span>
     </div>
 
     @if (alerts.Count == 0)
@@ -65,16 +99,34 @@ else
     }
     else
     {
-        @foreach (var alert in alerts)
-        {
-            <div class="alert-card severity-@alert.Severity.ToString().ToLower()">
-                <div class="alert-header">
-                    <span class="alert-type">@alert.Severity</span>
-                    <span class="alert-time">@FormatAlertTime(alert.IssueTime)</span>
+        <div class="news-list-scroll">
+            @for (int i = 0; i < Math.Min(alertLimit, alerts.Count); i++)
+            {
+                var alert = alerts[i];
+                var idx = i;
+                var expanded = expandedAlerts.Contains(idx);
+                <div class="alert-card severity-@alert.Severity.ToString().ToLower()">
+                    <div class="alert-header">
+                        <span class="alert-type">@ExtractProductTitle(alert.Message)</span>
+                        <span class="alert-time">@FormatAlertTime(alert.IssueTime)</span>
+                    </div>
+                    <div class="alert-ham-impact">@HamRadioImpact(alert)</div>
+                    <div class="alert-summary">@ExtractSummary(alert.Message)</div>
+                    <button class="alert-expand-btn" @onclick="() => ToggleExpand(idx)">
+                        @(expanded ? "Hide details ▲" : "Show full bulletin ▼")
+                    </button>
+                    @if (expanded)
+                    {
+                        <pre class="alert-full-text">@alert.Message</pre>
+                    }
                 </div>
-                <div class="alert-product">@alert.ProductId</div>
-                <div class="alert-body">@alert.Message</div>
-            </div>
+            }
+        </div>
+        @if (alerts.Count > alertLimit)
+        {
+            <button class="btn-ghost show-more-btn" @onclick="() => alertLimit += 5">
+                Show more (@(alerts.Count - alertLimit) remaining)
+            </button>
         }
     }
 }
@@ -88,8 +140,15 @@ else
     private SolarData? solar;
     private List<SpaceWeatherAlert> alerts = [];
     private List<ForecastEntry> forecastAlerts = [];
+    private HashSet<int> expandedAlerts = [];
+    private int alertLimit = 5;
     private bool loading = true;
     private string errorMessage = "";
+
+    private void ToggleExpand(int idx)
+    {
+        if (!expandedAlerts.Add(idx)) expandedAlerts.Remove(idx);
+    }
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
 
@@ -106,7 +165,12 @@ else
             await Task.WhenAll(solarTask, alertsTask, forecastTask);
 
             solar  = solarTask.Result;
-            alerts = alertsTask.Result;
+            var cutoff = DateTime.UtcNow.AddHours(-24);
+            alerts = alertsTask.Result
+                .Where(a => !DateTime.TryParse(a.IssueTime, out var dt) || dt.ToUniversalTime() >= cutoff)
+                .ToList();
+            alertLimit = 5;
+            expandedAlerts.Clear();
             forecastAlerts = forecastTask.Result
                 .Where(f => f.IsAlert && f.Time > DateTime.UtcNow)
                 .OrderBy(f => f.Time)
@@ -146,10 +210,120 @@ else
         _      => "Unknown"
     };
 
+    private static string SolarSummary(SolarData s)
+    {
+        var parts = new List<string>();
+
+        // SFI
+        if (s.SolarFluxIndex >= 150)
+            parts.Add("High solar flux — high bands (10m–15m) wide open for DX");
+        else if (s.SolarFluxIndex >= 120)
+            parts.Add("Moderate solar flux — good conditions on 15m–20m");
+        else if (s.SolarFluxIndex < 90)
+            parts.Add("Low solar flux — high bands likely closed, favor 40m/80m");
+
+        // Kp
+        if (s.KIndex >= 7)
+            parts.Add("severe geomagnetic storm — HF propagation heavily degraded");
+        else if (s.KIndex >= 5)
+            parts.Add("geomagnetic storm in progress — DX difficult on all bands");
+        else if (s.KIndex >= 4)
+            parts.Add("elevated geomagnetic activity — polar paths affected");
+        else if (s.KIndex <= 1)
+            parts.Add("very quiet geomagnetic field — ideal DX conditions");
+
+        // Bz
+        if (s.BzComponent < -10)
+            parts.Add("strong southward Bz — storm conditions likely developing");
+        else if (s.BzComponent < -5)
+            parts.Add("southward Bz — watch for geomagnetic disturbance");
+        else if (s.BzComponent < 0)
+            parts.Add($"Bz slightly southward ({s.BzComponent:F1} nT) — monitor for changes");
+
+        // Wind
+        if (s.SolarWindSpeed > 600)
+            parts.Add("fast solar wind — geomagnetic unsettled");
+
+        if (parts.Count == 0)
+            return "Conditions are quiet — good time to operate.";
+
+        parts[0] = char.ToUpper(parts[0][0]) + parts[0][1..];
+        return string.Join("; ", parts) + ".";
+    }
+
     private static string FormatAlertTime(string raw)
     {
         return DateTime.TryParse(raw, out var dt)
             ? dt.ToLocalTime().ToString("MMM d HH:mm")
             : raw;
+    }
+
+    // NOAA product_id is a URL for all entries; the event name is inside the message body.
+    private static string ExtractProductTitle(string message)
+    {
+        foreach (var line in message.Split('\n'))
+        {
+            var t = line.Trim();
+            foreach (var prefix in new[] { "ALERT:", "WATCH:", "WARNING:", "SUMMARY:" })
+            {
+                if (t.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                {
+                    var value = t[prefix.Length..].Trim();
+                    var dash = value.IndexOf(" - ", StringComparison.Ordinal);
+                    return dash > 0 ? value[..dash].Trim() : value;
+                }
+            }
+        }
+        // Fallback: extract code from "Space Weather Message Code: ALTK05"
+        var m = Regex.Match(message, @"Message Code:\s*(\w+)", RegexOptions.IgnoreCase);
+        if (m.Success)
+        {
+            var code = m.Groups[1].Value.ToUpperInvariant();
+            if (code.Contains("ALTK") || code.Contains("WATA")) return "Geomagnetic Alert";
+            if (code.Contains("ALTXR") || code.Contains("XRA")) return "X-ray / Flare Alert";
+            if (code.Contains("ALTTP"))                          return "Proton Event";
+            if (code.Contains("ALTEF"))                          return "Electron Flux Alert";
+            if (code.Contains("ALTSW"))                          return "Solar Wind Alert";
+        }
+        return "Space Weather Alert";
+    }
+
+    private static string HamRadioImpact(SpaceWeatherAlert alert)
+    {
+        var msg = alert.Message.ToUpperInvariant();
+
+        var kpMatch = Regex.Match(alert.Message, @"[Kk]p[- ]?(?:index[- ]?(?:of[- ]?)?)?(\d)");
+        var kp = kpMatch.Success ? int.Parse(kpMatch.Groups[1].Value) : -1;
+
+        if (msg.Contains("GEOMAGNETIC") || msg.Contains("ALTK") || msg.Contains("WATA"))
+        {
+            if (kp >= 7) return "Severe storm — HF propagation heavily degraded. Avoid DX.";
+            if (kp >= 5) return "Geomagnetic storm — HF DX difficult, especially on high bands and polar paths.";
+            return "Elevated geomagnetic activity — minor impact on HF propagation.";
+        }
+        if (msg.Contains("X-RAY") || msg.Contains("FLARE") || msg.Contains("ALTXR"))
+            return "Solar flare — possible HF radio blackout on the sunlit side of Earth.";
+        if (msg.Contains("PROTON") || msg.Contains("ALTTP"))
+            return "Proton event — polar HF paths degraded, GPS and satellite interference possible.";
+        if (msg.Contains("ELECTRON") || msg.Contains("ALTEF"))
+            return "Elevated electron flux — generally low HF impact, monitor conditions.";
+        if (msg.Contains("SOLAR WIND") || msg.Contains("ALTSW"))
+            return "Enhanced solar wind — watch for geomagnetic disturbances in the next 1–3 days.";
+        if (msg.Contains("SUMMARY") || msg.Contains("FORECAST"))
+            return "Informational summary — no immediate operational impact.";
+        return "Monitor conditions — check band activity before operating.";
+    }
+
+    private static string ExtractSummary(string message)
+    {
+        var lines = message.Split('\n')
+            .Select(l => l.Trim())
+            .Where(l => l.Length > 0 &&
+                        !l.StartsWith(':') &&
+                        !l.StartsWith("NOAA Space Weather Scale") &&
+                        !l.StartsWith("http"))
+            .ToList();
+        var summary = string.Join(" ", lines.Take(3));
+        return summary.Length > 220 ? summary[..220] + "…" : summary;
     }
 }
