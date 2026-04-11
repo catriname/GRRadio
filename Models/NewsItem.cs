@@ -23,6 +23,15 @@ public class RedditPost
     }
 }
 
+public class ClassifiedListing
+{
+    public string Title { get; set; } = string.Empty;
+    public string Url { get; set; } = string.Empty;
+    public string TimeAgo { get; set; } = string.Empty;
+    public string Snippet { get; set; } = string.Empty;
+    public string Source { get; set; } = string.Empty;
+}
+
 public class DxNewsItem
 {
     public string Title { get; set; } = string.Empty;

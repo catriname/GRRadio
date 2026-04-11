@@ -2,6 +2,7 @@
 @using GRRadio.Models
 @using GRRadio.Services
 @inject NewsService NewsSvc
+@inject ClassifiedService ClassifiedSvc
 @inject SettingsService SettingsSvc
 
 <div class="page-header">
@@ -145,17 +146,78 @@
     }
 }
 
+<!-- ── Ham Classifieds ────────────────────────────────────── -->
+<div class="collapsible-header" @onclick="() => showClassifieds = !showClassifieds">
+    <h2>Ham Classifieds</h2>
+    <span class="collapse-chevron">@(showClassifieds ? "▲" : "▼")</span>
+</div>
+
+@if (showClassifieds)
+{
+    @if (loadingClassifieds)
+    {
+        <div class="news-loading">Loading listings…</div>
+    }
+    else if (!string.IsNullOrEmpty(classifiedsError))
+    {
+        <div class="alert-card alert-warn">@classifiedsError</div>
+    }
+    @if (classifiedItems.Count == 0)
+    {
+        <div class="empty-state">No listings found.</div>
+    }
+    else
+    {
+        <div class="news-list-scroll">
+            <div class="news-list">
+                @foreach (var item in classifiedItems.Take(classifiedsLimit))
+                {
+                    <div class="news-item" @onclick="() => OpenUrl(item.Url)">
+                        <div class="news-item-meta">
+                            <span class="source-badge source-@item.Source.ToLower()">@item.Source</span>
+                            @if (!string.IsNullOrEmpty(item.TimeAgo))
+                            {
+                                <span class="news-age">@item.TimeAgo</span>
+                            }
+                        </div>
+                        <div class="news-item-title">@item.Title</div>
+                        @if (!string.IsNullOrEmpty(item.Snippet))
+                        {
+                            <div class="news-item-desc">
+                                @(item.Snippet.Length > 120
+                                    ? item.Snippet[..120] + "…"
+                                    : item.Snippet)
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+        @if (classifiedItems.Count > classifiedsLimit)
+        {
+            <button class="btn-ghost show-more-btn" @onclick="() => classifiedsLimit += 10">
+                Show more (@(classifiedItems.Count - classifiedsLimit) remaining)
+            </button>
+        }
+    }
+}
+
 @code {
     private List<RedditPost> redditPosts = [];
     private List<DxNewsItem> dxItems = [];
-    private bool loading => loadingReddit || loadingDx;
+    private List<ClassifiedListing> classifiedItems = [];
+    private bool loading => loadingReddit || loadingDx || loadingClassifieds;
     private bool loadingReddit = true;
     private bool loadingDx = true;
+    private bool loadingClassifieds = true;
     private string redditError = "";
     private string dxError = "";
+    private string classifiedsError = "";
     private bool showReddit = true;
     private bool showDx = true;
+    private bool showClassifieds = true;
     private int redditLimit = 10;
+    private int classifiedsLimit = 10;
     private bool dxShowAll = false;
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
@@ -164,16 +226,20 @@
     {
         loadingReddit = true;
         loadingDx = true;
+        loadingClassifieds = true;
         redditError = "";
         dxError = "";
+        classifiedsError = "";
         redditLimit = 10;
+        classifiedsLimit = 10;
         dxShowAll = false;
         StateHasChanged();
 
         var settings = SettingsSvc.Load();
         var redditTask = LoadRedditAsync(settings.NewsSubreddits);
         var dxTask = LoadDxAsync();
-        await Task.WhenAll(redditTask, dxTask);
+        var classifiedsTask = LoadClassifiedsAsync();
+        await Task.WhenAll(redditTask, dxTask, classifiedsTask);
     }
 
     private async Task LoadRedditAsync(List<string> subreddits)
@@ -206,6 +272,23 @@
         finally
         {
             loadingDx = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadClassifiedsAsync()
+    {
+        try
+        {
+            classifiedItems = await ClassifiedSvc.GetListingsAsync();
+        }
+        catch (Exception ex)
+        {
+            classifiedsError = $"Could not load classified listings: {ex.Message}";
+        }
+        finally
+        {
+            loadingClassifieds = false;
             StateHasChanged();
         }
     }
