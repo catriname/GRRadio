@@ -5,12 +5,9 @@
 @inject SettingsService SettingsSvc
 @inject SolarWeatherService SolarService
 @inject SatelliteService SatService
-@inject CallookService CallookSvc
 @inject PskReporterService PskSvc
-@inject PoTaService PoTaSvc
 @inject TravelDestinationService TravelSvc
-@inject QrzLogbookService QrzSvc
-@inject LoTwStatsService LoTwSvc
+@inject PhraseService PhraseSvc
 @inject NavigationManager Nav
 
 <div class="page-header">
@@ -85,15 +82,12 @@
         <div class="daily-greeting-line">
             @greetingWord, @(settings?.Callsign is { Length: > 0 } cs ? cs : "operator").
         </div>
+        <div class="daily-date-line">@DateTime.Now.ToString("dddd, MMMM d")</div>
 
         @if (insights.Count > 0)
         {
             var insight = insights[insightIndex];
             <div class="daily-insight-text">
-                @if (!string.IsNullOrEmpty(insight.BadgeText))
-                {
-                    <span class="license-badge @insight.BadgeCss">@insight.BadgeText</span>
-                }
                 @if (!string.IsNullOrEmpty(insight.Icon))
                 {
                     <span class="daily-insight-icon">@insight.Icon</span>
@@ -109,16 +103,12 @@
                 <div class="daily-insight-dots">
                     @for (int i = 0; i < insights.Count; i++)
                     {
-                        var idx = i; // capture for lambda
+                        var idx = i;
                         <span class="insight-dot @(idx == insightIndex ? "insight-dot-active" : "")"
                               @onclick="() => { insightIndex = idx; }"></span>
                     }
                 </div>
             }
-        }
-        else
-        {
-            <div class="daily-date-line">@DateTime.Now.ToString("dddd, MMMM d")</div>
         }
     </div>
 </div>
@@ -423,158 +413,46 @@
     {
         try
         {
-            // Seed with date immediately
-            AddInsight(new GreetingInsight
-            {
-                Icon = "",
-                Text = DateTime.Now.ToString("dddd, MMMM d")
-            });
+            // 1. Phrase — local file, appears first
+            var phrase = await PhraseSvc.GetRandomPhraseAsync();
+            AddInsight(new GreetingInsight { Text = phrase.Text });
 
-            // Fire all remote lookups in parallel
-            var licenseTask = CallookSvc.LookupAsync(callsign);
-            var pskTask     = PskSvc.GetRecentSpotsAsync(callsign, hoursBack: 24);
-            var potaTask    = PoTaSvc.GetActivationCountAsync(callsign);
-            var qrzTask     = string.IsNullOrEmpty(settings?.QrzApiKey)
-                                  ? Task.FromResult<QrzStats?>(null)
-                                  : QrzSvc.GetStatsAsync(settings.QrzApiKey);
-            var lotwTask    = (string.IsNullOrEmpty(settings?.LoTwUsername) || string.IsNullOrEmpty(settings?.LoTwPassword))
-                                  ? Task.FromResult<LoTwStats?>(null)
-                                  : LoTwSvc.GetStatsAsync(settings.LoTwUsername, settings.LoTwPassword);
-
-            // License (fast — usually returns first)
-            var license = await licenseTask;
-            if (license is not null && !string.IsNullOrEmpty(license.ClassShort))
-            {
-                var yearsText = license.YearsLicensed > 0
-                    ? $" · Licensed {license.YearsLicensed} year{(license.YearsLicensed == 1 ? "" : "s")}"
-                    : "";
+            // 2. Solar / band conditions summary
+            // bands is set synchronously right after this task starts, before any await completes
+            var excellent = bands.Where(b => b.Rating == BandRating.Excellent).Select(b => b.Band).ToList();
+            var good      = bands.Where(b => b.Rating == BandRating.Good).Select(b => b.Band).ToList();
+            var poor      = bands.Where(b => b.Rating is BandRating.Poor or BandRating.Closed).Select(b => b.Band).ToList();
+            var bestList  = excellent.Any() ? excellent : good;
+            var bestLabel = excellent.Any() ? "excellent" : "good";
+            var solarParts = new List<string>();
+            if (bestList.Any())
+                solarParts.Add($"{string.Join(" ", bestList)} {bestLabel}");
+            if (poor.Any())
+                solarParts.Add($"{string.Join(" ", poor)} poor");
+            if (solarParts.Any())
                 AddInsight(new GreetingInsight
                 {
-                    BadgeText = license.ClassShort,
-                    BadgeCss  = license.ClassCss,
-                    Text      = yearsText
+                    Icon    = "📻 ",
+                    Text    = string.Join(" · ", solarParts),
+                    SubText = solar is not null ? $"SFI {solar.SolarFluxIndex} · Kp {solar.KIndex}" : ""
                 });
-            }
 
-            // PSK Reporter — farthest heard (digital modes)
-            var spots = await pskTask;
-            if (spots.Count > 0 && !string.IsNullOrEmpty(gridSquare))
-            {
-                var (sLat, sLon) = SettingsService.MaidenheadToLatLon(gridSquare);
-                foreach (var s in spots)
-                {
-                    var (rLat, rLon) = SettingsService.MaidenheadToLatLon(s.ReceiverLocator);
-                    s.DistanceKm = HaversineKm(sLat, sLon, rLat, rLon);
-                }
-                var farthest = spots.MaxBy(s => s.DistanceKm);
-                if (farthest is not null && farthest.DistanceKm > 50)
-                {
-                    AddInsight(new GreetingInsight
-                    {
-                        Icon    = "📡 ",
-                        Text    = $"Your signal reached {farthest.DistanceDisplay}",
-                        SubText = $"{farthest.ReceiverCallsign} · {farthest.ReceiverLocator} · {farthest.Band} {farthest.Mode} · {farthest.TimeAgo}"
-                    });
-                }
-            }
-
-            // POTA activation count
-            var potaCount = await potaTask;
-            if (potaCount > 0)
-            {
+            // 3. Last spotted via PSK Reporter (72 h window)
+            var spots = await PskSvc.GetRecentSpotsAsync(callsign, hoursBack: 72);
+            var latest = spots.Count > 0 ? spots.MaxBy(s => s.Timestamp) : null;
+            if (latest is not null)
                 AddInsight(new GreetingInsight
                 {
-                    Icon = "🌲 ",
-                    Text = $"You've activated {potaCount} POTA park{(potaCount == 1 ? "" : "s")}"
+                    Icon    = "📡 ",
+                    Text    = $"Last spotted {latest.TimeAgo}",
+                    SubText = $"via {latest.ReceiverCallsign} · {latest.Band} {latest.Mode}"
                 });
-            }
-
-            // QRZ Logbook insights
-            var qrz = await qrzTask;
-            if (qrz is not null)
-            {
-                if (qrz.TotalQsos > 0)
+            else
+                AddInsight(new GreetingInsight
                 {
-                    AddInsight(new GreetingInsight
-                    {
-                        Icon = "📖 ",
-                        Text = $"You've logged {qrz.TotalQsos:N0} QSOs"
-                    });
-                }
-                if (!string.IsNullOrEmpty(qrz.LastCall))
-                {
-                    var when = qrz.LastDate.HasValue
-                        ? qrz.LastDate.Value.ToString("MMM d")
-                        : "recently";
-                    AddInsight(new GreetingInsight
-                    {
-                        Icon    = "🤝 ",
-                        Text    = $"Last contact: {qrz.LastCall}",
-                        SubText = $"{qrz.LastBand} {qrz.LastMode} · {when}"
-                    });
-                }
-            }
-
-            // LoTW award progress insights
-            var lotw = await lotwTask;
-            if (lotw is not null)
-            {
-                if (lotw.ConfirmedQsos > 0)
-                {
-                    AddInsight(new GreetingInsight
-                    {
-                        Icon = "✅ ",
-                        Text = $"{lotw.ConfirmedQsos:N0} QSOs confirmed via LoTW"
-                    });
-                }
-
-                if (lotw.ConfirmedDxcc > 0)
-                {
-                    var dxcc = lotw.ConfirmedDxcc;
-                    // Milestone messaging
-                    string dxccText = dxcc >= 335
-                        ? $"🌍 {dxcc}/340 DXCC — Honor Roll!"
-                        : dxcc >= 300
-                            ? $"🌍 {dxcc}/340 DXCC confirmed — {340 - dxcc} to go"
-                            : dxcc >= 100
-                                ? $"🌍 {dxcc} DXCC entities confirmed"
-                                : $"🌍 {dxcc} DXCC entities confirmed";
-
-                    var dxccSub = dxcc < 100
-                        ? $"{100 - dxcc} more entities until DXCC award"
-                        : dxcc < 150
-                            ? $"{150 - dxcc} more until DXCC 150"
-                            : dxcc < 200
-                                ? $"{200 - dxcc} more until DXCC 200"
-                                : dxcc < 300
-                                    ? $"{300 - dxcc} more until DXCC 300"
-                                    : dxcc < 335
-                                        ? $"{335 - dxcc} more until Honor Roll"
-                                        : "";
-
-                    AddInsight(new GreetingInsight
-                    {
-                        Text    = dxccText,
-                        SubText = dxccSub
-                    });
-                }
-
-                if (lotw.ConfirmedWas > 0)
-                {
-                    var was = lotw.ConfirmedWas;
-                    var wasText = was == 50
-                        ? "🗺️ WAS complete — all 50 states confirmed!"
-                        : $"🗺️ {was}/50 WAS states confirmed";
-                    var wasSub = was < 50
-                        ? $"{50 - was} state{(50 - was == 1 ? "" : "s")} to go for WAS"
-                        : "";
-                    AddInsight(new GreetingInsight
-                    {
-                        Text    = wasText,
-                        SubText = wasSub
-                    });
-                }
-            }
+                    Icon = "📡 ",
+                    Text = "No recent spots — get on the air!"
+                });
         }
         catch { /* insights are non-critical */ }
     }

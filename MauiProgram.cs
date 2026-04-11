@@ -72,11 +72,6 @@ public static class MauiProgram
 			client.DefaultRequestHeaders.Add("User-Agent", "GRRadio/1.0 (ham radio logbook app)");
 			client.Timeout = TimeSpan.FromSeconds(20);
 		});
-		builder.Services.AddHttpClient<LoTwStatsService>(client =>
-		{
-			client.DefaultRequestHeaders.Add("User-Agent", "GRRadio/1.0 (ham radio logbook app)");
-			client.Timeout = TimeSpan.FromSeconds(30);  // LoTW can be slow
-		});
 
 #if DEBUG
 		builder.Services.AddBlazorWebViewDeveloperTools();

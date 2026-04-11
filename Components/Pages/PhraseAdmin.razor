@@ -72,42 +72,62 @@
         }
     </div>
 
-    <!-- Built-in count -->
+    <!-- Built-in phrases -->
     <div class="settings-section">
-        <h3 class="settings-section-title">Built-in Phrases</h3>
-        <p class="form-hint">@builtInCount built-in phrases are always included in the random pool alongside yours.</p>
+        <h3 class="settings-section-title">Built-in Phrases (@builtInPhrases.Count)</h3>
+        <p class="form-hint" style="margin-bottom: 12px;">These are always included in the random pool alongside yours.</p>
+        <div class="phrase-list">
+            @foreach (var phrase in builtInPhrases)
+            {
+                <div class="phrase-item">
+                    <div class="phrase-item-body">
+                        <div class="phrase-item-text">@phrase.Text</div>
+                        <div class="phrase-item-category">@phrase.Category</div>
+                    </div>
+                </div>
+            }
+        </div>
     </div>
 
 </div>
 
 @code {
     private List<Phrase> userPhrases = [];
-    private int builtInCount = 0;
+    private List<Phrase> builtInPhrases = [];
     private string newText = "";
     private string newCategory = "general";
     private string statusMessage = "";
 
     protected override async Task OnInitializedAsync()
     {
-        userPhrases = PhraseSvc.GetUserPhrases();
-        var all = await PhraseSvc.GetAllPhrasesAsync();
-        builtInCount = all.Count - userPhrases.Count;
+        userPhrases    = PhraseSvc.GetUserPhrases();
+        var all        = await PhraseSvc.GetAllPhrasesAsync();
+        var userIds    = userPhrases.Select(p => p.Id).ToHashSet();
+        builtInPhrases = all.Where(p => !userIds.Contains(p.Id)).ToList();
     }
 
-    private void AddPhrase()
+    private async void AddPhrase()
     {
         if (string.IsNullOrWhiteSpace(newText)) return;
         PhraseSvc.AddUserPhrase(newText, newCategory);
-        userPhrases = PhraseSvc.GetUserPhrases();
+        await RefreshAsync();
         statusMessage = "Phrase added!";
         newText = "";
         newCategory = "general";
     }
 
-    private void DeletePhrase(string id)
+    private async void DeletePhrase(string id)
     {
         PhraseSvc.DeleteUserPhrase(id);
-        userPhrases = PhraseSvc.GetUserPhrases();
+        await RefreshAsync();
         statusMessage = "";
+    }
+
+    private async Task RefreshAsync()
+    {
+        userPhrases    = PhraseSvc.GetUserPhrases();
+        var all        = await PhraseSvc.GetAllPhrasesAsync();
+        var userIds    = userPhrases.Select(p => p.Id).ToHashSet();
+        builtInPhrases = all.Where(p => !userIds.Contains(p.Id)).ToList();
     }
 }

@@ -58,13 +58,6 @@ public class QrzStats
     public DateTime? LastDate  { get; set; }
 }
 
-public class LoTwStats
-{
-    public int ConfirmedDxcc { get; set; }   // unique DXCC entities confirmed
-    public int ConfirmedWas  { get; set; }   // 0–50 US states confirmed
-    public int ConfirmedQsos { get; set; }
-}
-
 public class PskSpot
 {
     public string ReceiverCallsign { get; set; } = "";

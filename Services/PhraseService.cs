@@ -54,6 +54,11 @@ public class PhraseService
     private void SaveUserPhrases(List<Phrase> phrases) =>
         Preferences.Default.Set(UserPhrasesKey, JsonSerializer.Serialize(phrases));
 
+    private static readonly JsonSerializerOptions _jsonOpts = new()
+    {
+        PropertyNameCaseInsensitive = true
+    };
+
     private async Task<List<Phrase>> GetBuiltInPhrasesAsync()
     {
         if (_builtIn is not null) return _builtIn;
@@ -63,7 +68,7 @@ public class PhraseService
             await using var stream = await FileSystem.OpenAppPackageFileAsync("phrases.json");
             using var reader = new StreamReader(stream);
             var json = await reader.ReadToEndAsync();
-            var doc = JsonSerializer.Deserialize<PhrasesDocument>(json);
+            var doc = JsonSerializer.Deserialize<PhrasesDocument>(json, _jsonOpts);
             _builtIn = doc?.Phrases ?? [];
         }
         catch

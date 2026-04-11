@@ -168,22 +168,6 @@
             </div>
         </div>
 
-        <div class="form-group">
-            <label class="form-label">LoTW Username</label>
-            <input class="form-input" type="text"
-                   placeholder="Your ARRL LoTW username"
-                   @bind="lotwUsername"
-                   maxlength="32" />
-        </div>
-
-        <div class="form-group">
-            <label class="form-label">LoTW Password</label>
-            <input class="form-input" type="password"
-                   placeholder="Your ARRL LoTW password"
-                   @bind="lotwPassword"
-                   maxlength="64" />
-            <span class="form-hint">Used to fetch confirmed DXCC / WAS award progress</span>
-        </div>
     </div>
 
     <!-- App Settings -->
@@ -321,9 +305,7 @@
     private string newSubName = "";
     private string newDestInput = "";
     private List<TravelDestination> travelDestinations = [];
-    private string qrzApiKey    = "";
-    private string lotwUsername = "";
-    private string lotwPassword = "";
+    private string qrzApiKey = "";
     private string locationMessage = "";
     private string saveMessage = "";
     private bool saveSuccess = false;
@@ -342,8 +324,6 @@
         dailyReportEnabled  = s.DailyReportEnabled;
         satellitesEnabled   = s.SatellitesEnabled;
         qrzApiKey           = s.QrzApiKey;
-        lotwUsername        = s.LoTwUsername;
-        lotwPassword        = s.LoTwPassword;
     }
 
     private void Save()
@@ -378,9 +358,7 @@
             DarkMode            = darkMode,
             DailyReportEnabled  = dailyReportEnabled,
             SatellitesEnabled   = satellitesEnabled,
-            QrzApiKey           = qrzApiKey.Trim(),
-            LoTwUsername        = lotwUsername.Trim(),
-            LoTwPassword        = lotwPassword
+            QrzApiKey           = qrzApiKey.Trim()
         });
 
         saveMessage = "Settings saved!";
