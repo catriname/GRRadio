@@ -11,15 +11,16 @@ public static class PropagationEngine
     // Band definitions: name, frequency range, is-night, is-high
     private static readonly BandDef[] Bands =
     [
-        new("6m",  "50.0–54.0 MHz",   false, true),
-        new("10m", "28.0–29.7 MHz",   false, true),
+        new("6m",  "50.0–54.0 MHz",     false, true),
+        new("10m", "28.0–29.7 MHz",     false, true),
         new("12m", "24.890–24.990 MHz", false, true),
-        new("15m", "21.0–21.45 MHz",  false, true),
-        new("17m", "18.068–18.168 MHz", false, false),
-        new("20m", "14.0–14.35 MHz",  false, false),
-        new("30m", "10.1–10.15 MHz",  false, false),
-        new("40m", "7.0–7.3 MHz",     true,  false),
-        new("80m", "3.5–4.0 MHz",     true,  false),
+        new("15m", "21.0–21.45 MHz",   false, true),
+        new("17m", "18.068–18.168 MHz",false, false),
+        new("20m", "14.0–14.35 MHz",   false, false),
+        new("30m", "10.1–10.15 MHz",   false, false),
+        new("40m", "7.0–7.3 MHz",      true,  false),
+        new("60m", "5.330–5.406 MHz",  true,  false),
+        new("80m", "3.5–4.0 MHz",      true,  false),
     ];
 
     private record BandDef(string Name, string Freq, bool IsNight, bool IsHigh);
@@ -111,6 +112,7 @@ public static class PropagationEngine
             "20m" => Score20m(band, sfi, kp, block),
             "30m" => Score30m(band, sfi, kp, block),
             "40m" => Score40m(band, sfi, kp, block),
+            "60m" => Score60m(band, sfi, kp, block),
             "80m" => Score80m(band, sfi, kp, block),
             _ => Closed(band)
         };
@@ -208,6 +210,20 @@ public static class PropagationEngine
             return Make(b, BandRating.Good, "Opening as night falls", ["NA", "SA", "EU"], "SSB/CW/FT8");
         // Daytime
         return Make(b, BandRating.Fair, "NVIS – regional contacts only", ["NA regional"], "SSB/CW");
+    }
+
+    private static BandCondition Score60m(BandDef b, double sfi, double kp, TimeBlock t)
+    {
+        // 60m: 5 fixed channels, NVIS/regional, usable day and night
+        if (t is TimeBlock.Night or TimeBlock.PreSunrise)
+        {
+            if (kp < 3)
+                return Make(b, BandRating.Good, "NVIS + regional DX overnight", ["NA", "EU"], "SSB/FT8");
+            return Make(b, BandRating.Fair, "Usable — some noise", ["NA regional"], "FT8");
+        }
+        if (kp < 4)
+            return Make(b, BandRating.Fair, "NVIS — regional paths", ["NA regional"], "SSB/FT8");
+        return Make(b, BandRating.Poor, "Disturbed — try later", [], "FT8");
     }
 
     private static BandCondition Score80m(BandDef b, double sfi, double kp, TimeBlock t)
