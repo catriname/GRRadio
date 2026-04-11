@@ -4,7 +4,6 @@
 @implements IDisposable
 @inject SettingsService SettingsSvc
 @inject SolarWeatherService SolarService
-@inject HfConditionsService HfService
 @inject SatelliteService SatService
 @inject CallookService CallookSvc
 @inject PskReporterService PskSvc
@@ -145,55 +144,65 @@
         {
             @foreach (var dest in destinations)
             {
-                <div class="dest-card">
-                    @if (!string.IsNullOrEmpty(dest.ImageUrl))
-                    {
-                        <img class="dest-image" src="@dest.ImageUrl" alt="@dest.Name"
-                             onerror="this.style.display='none'" loading="lazy" />
-                    }
-                    <div class="dest-body">
-                        <div class="dest-title-row">
-                            <span class="dest-name">@dest.Name</span>
-                            @if (!string.IsNullOrEmpty(dest.PotaReference))
+                var isFlipped = flippedCards.Contains(dest.Name);
+                <div class="dest-card @(isFlipped ? "flipped" : "")"
+                     @onclick="() => ToggleDestFlip(dest.Name)">
+                    <div class="dest-flip-inner">
+
+                        <!-- FRONT: image + name + location -->
+                        <div class="dest-front">
+                            @if (!string.IsNullOrEmpty(dest.ImageUrl))
                             {
-                                <span class="dest-pota-ref">@dest.PotaReference</span>
+                                <img class="dest-image" src="@dest.ImageUrl" alt="@dest.Name"
+                                     onerror="this.style.display='none'" />
                             }
+                            <div class="dest-front-body">
+                                <div class="dest-title-row">
+                                    <span class="dest-name">@dest.Name</span>
+                                    @if (!string.IsNullOrEmpty(dest.PotaReference))
+                                    {
+                                        <span class="dest-pota-ref">@dest.PotaReference</span>
+                                    }
+                                </div>
+                                @if (!string.IsNullOrEmpty(dest.LocationName))
+                                {
+                                    <div class="dest-location">@dest.LocationName</div>
+                                }
+                                <div class="dest-flip-hint">tap to flip ↻</div>
+                            </div>
                         </div>
-                        @if (!string.IsNullOrEmpty(dest.LocationName))
-                        {
-                            <div class="dest-location">@dest.LocationName</div>
-                        }
-                        @if (!string.IsNullOrEmpty(dest.Description))
-                        {
-                            <div class="dest-description">@dest.Description</div>
-                        }
-                        <div class="dest-stats">
-                            @if (!string.IsNullOrEmpty(dest.Grid))
-                            {
-                                <span class="dest-stat">
-                                    <span class="dest-stat-label">Grid</span>@dest.Grid
-                                </span>
-                            }
-                            @if (dest.DistanceKm > 0)
-                            {
-                                <span class="dest-stat">
-                                    <span class="dest-stat-label">Distance</span>@dest.DistanceDisplay
-                                </span>
-                            }
-                            @if (!string.IsNullOrEmpty(dest.SunriseUtc))
-                            {
-                                <span class="dest-stat">
-                                    <span class="dest-stat-label">@(dest.IsDay ? "☀ Day" : "☾ Night")</span>
-                                    ↑@dest.SunriseUtc ↓@dest.SunsetUtc UTC
-                                </span>
-                            }
-                            @if (dest.ActivatorCount > 0)
-                            {
-                                <span class="dest-stat">
-                                    <span class="dest-stat-label">Your activations</span>@dest.ActivatorCount
-                                </span>
-                            }
+
+                        <!-- BACK: description + grid + distance -->
+                        <div class="dest-back">
+                            <div class="dest-back-body">
+                                <div class="dest-back-name">@dest.Name</div>
+                                @if (!string.IsNullOrEmpty(dest.Description))
+                                {
+                                    <div class="dest-description">@dest.Description</div>
+                                }
+                                <div class="dest-stats">
+                                    @if (!string.IsNullOrEmpty(dest.Grid))
+                                    {
+                                        <span class="dest-stat">
+                                            <span class="dest-stat-label">Grid</span>@dest.Grid
+                                        </span>
+                                    }
+                                    @if (dest.DistanceKm > 0)
+                                    {
+                                        <span class="dest-stat">
+                                            <span class="dest-stat-label">Distance</span>@dest.DistanceDisplay
+                                        </span>
+                                    }
+                                    @if (dest.ActivatorCount > 0)
+                                    {
+                                        <span class="dest-stat">
+                                            <span class="dest-stat-label">Activations</span>@dest.ActivatorCount
+                                        </span>
+                                    }
+                                </div>
+                            </div>
                         </div>
+
                     </div>
                 </div>
             }
@@ -298,6 +307,13 @@
     private bool showPasses       = true;
     private bool showDestinations = true;
 
+    private HashSet<string> flippedCards = [];
+    private void ToggleDestFlip(string name)
+    {
+        if (!flippedCards.Remove(name))
+            flippedCards.Add(name);
+    }
+
     // ── Greeting insights rotation ────────────────────────────────
     private List<GreetingInsight> insights  = [];
     private int insightIndex = 0;
@@ -356,10 +372,9 @@
                 var (lat, lon) = SettingsService.MaidenheadToLatLon(settings.GridSquare);
 
                 // Band conditions + insights load in parallel
-                var bandsTask    = HfService.GetBandConditionsAsync(lat, lon);
                 var insightsTask = LoadInsightsAsync(settings.Callsign, settings.GridSquare);
 
-                bands = await bandsTask;
+                bands = PropagationEngine.Evaluate(solar!, DateTime.UtcNow, lat, lon);
                 _ = insightsTask;  // insights self-update via AddInsight → StateHasChanged
 
                 // Destinations
