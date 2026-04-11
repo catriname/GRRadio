@@ -25,8 +25,8 @@ public class SatellitePass
     public bool IsUpcoming => AosTime > DateTime.UtcNow;
     public TimeSpan TimeUntilAos => AosTime - DateTime.UtcNow;
 
-    public string AosTimeLocal => AosTime.ToLocalTime().ToString("ddd HH:mm");
-    public string LosTimeLocal => LosTime.ToLocalTime().ToString("HH:mm");
+    public string AosTimeLocal => DateTime.SpecifyKind(AosTime, DateTimeKind.Utc).ToLocalTime().ToString("ddd HH:mm");
+    public string LosTimeLocal => DateTime.SpecifyKind(LosTime, DateTimeKind.Utc).ToLocalTime().ToString("HH:mm");
     public string MaxElevationStr => $"{MaxElevation:F0}°";
 
     public string PassQuality => MaxElevation switch

@@ -1,0 +1,194 @@
+@page "/wellbeing"
+@using GRRadio.Models
+@using GRRadio.Services
+@inject SettingsService SettingsSvc
+@inject CallookService CallookSvc
+@inject PskReporterService PskSvc
+@inject NavigationManager Nav
+
+<div class="page-header">
+    <h1>Operator Profile</h1>
+    <button class="refresh-btn" @onclick="LoadAsync" disabled="@loading">
+        @if (loading) { <span class="spinner">⟳</span> } else { <span>⟳</span> }
+    </button>
+</div>
+
+@if (!settings!.IsConfigured)
+{
+    <div class="alert-card alert-warn">
+        <strong>Setup required</strong> — enter your callsign and grid square in
+        <a @onclick='() => Nav.NavigateTo("/settings")' class="link">Settings</a>.
+    </div>
+}
+else
+{
+    <!-- ── License Card ──────────────────────────────────────────────── -->
+    <div class="wb-card">
+        <div class="wb-card-label">License</div>
+
+        @if (licenseLoading)
+        {
+            <div class="wb-skeleton-row"></div>
+        }
+        else if (license is not null && !string.IsNullOrEmpty(license.ClassShort))
+        {
+            <div class="wb-license-row">
+                <span class="wb-license-class @license.ClassCss">@license.ClassShort</span>
+                <span class="wb-callsign-lg">@settings.Callsign</span>
+            </div>
+            @if (license.YearsLicensed > 0)
+            {
+                <div class="wb-stat-line">
+                    Licensed for <strong>@license.YearsLicensed year@(license.YearsLicensed == 1 ? "" : "s")</strong>
+                    @if (!string.IsNullOrEmpty(license.Name))
+                    {
+                        <span class="wb-name"> · @ToTitleCase(license.Name)</span>
+                    }
+                </div>
+            }
+            @if (!string.IsNullOrEmpty(license.Country))
+            {
+                <div class="wb-detail-line">@license.Country</div>
+            }
+        }
+        else
+        {
+            <div class="wb-callsign-lg">@settings.Callsign</div>
+            <div class="wb-detail-line">License data not available for this callsign (US only)</div>
+        }
+    </div>
+
+    <!-- ── Farthest Heard Card ───────────────────────────────────────── -->
+    <div class="wb-card">
+        <div class="wb-card-label">Farthest Heard (PSK Reporter · 24h)</div>
+
+        @if (pskLoading)
+        {
+            <div class="wb-skeleton-row"></div>
+            <div class="wb-skeleton-row wb-skeleton-short"></div>
+        }
+        else if (farthest is not null && farthest.DistanceKm > 0)
+        {
+            <div class="wb-distance-hero">@farthest.DistanceDisplay</div>
+            <div class="wb-spot-detail">
+                <span class="wb-spot-call">@farthest.ReceiverCallsign</span>
+                <span class="wb-spot-grid"> · @farthest.ReceiverLocator</span>
+            </div>
+            <div class="wb-spot-meta">
+                @farthest.Band · @farthest.Mode
+                @if (farthest.SNR != 0)
+                {
+                    <span> · @farthest.SNR dB S/N</span>
+                }
+                <span> · @farthest.TimeAgo</span>
+            </div>
+            @if (totalSpots > 1)
+            {
+                <div class="wb-spot-count">Heard by @totalSpots station@(totalSpots == 1 ? "" : "s") in the last 24 hours</div>
+            }
+        }
+        else if (!pskLoading)
+        {
+            <div class="wb-empty">No PSK Reporter spots in the last 24 hours.</div>
+            <div class="wb-detail-line">Get on the air with FT8, JS8, or PSK31 to see your reach.</div>
+        }
+    </div>
+
+    <!-- ── Grid Info Card ───────────────────────────────────────────── -->
+    <div class="wb-card">
+        <div class="wb-card-label">Home QTH</div>
+        <div class="wb-license-row">
+            <span class="wb-grid-lg">@settings.GridSquare</span>
+        </div>
+        <div class="wb-detail-line">
+            @settings.Latitude.ToString("F4")°, @settings.Longitude.ToString("F4")°
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert-card alert-error">@errorMessage</div>
+    }
+}
+
+@code {
+    private UserSettings? settings;
+    private CallookData?  license;
+    private PskSpot?      farthest;
+    private int           totalSpots;
+
+    private bool loading        = false;
+    private bool licenseLoading = true;
+    private bool pskLoading     = true;
+    private string errorMessage = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        settings = SettingsSvc.Load();
+        if (settings.IsConfigured)
+            await LoadAsync();
+        else
+            licenseLoading = pskLoading = false;
+    }
+
+    private async Task LoadAsync()
+    {
+        loading        = true;
+        licenseLoading = true;
+        pskLoading     = true;
+        errorMessage   = "";
+        StateHasChanged();
+
+        try
+        {
+            settings = SettingsSvc.Load();
+
+            var licenseTask = CallookSvc.LookupAsync(settings.Callsign);
+            var pskTask     = PskSvc.GetRecentSpotsAsync(settings.Callsign);
+
+            await Task.WhenAll(licenseTask, pskTask);
+
+            license        = licenseTask.Result;
+            licenseLoading = false;
+            StateHasChanged();
+
+            var spots  = pskTask.Result;
+            totalSpots = spots.Count;
+
+            if (spots.Count > 0 && !string.IsNullOrEmpty(settings.GridSquare))
+            {
+                var (sLat, sLon) = SettingsService.MaidenheadToLatLon(settings.GridSquare);
+                foreach (var s in spots)
+                {
+                    var (rLat, rLon) = SettingsService.MaidenheadToLatLon(s.ReceiverLocator);
+                    s.DistanceKm = HaversineKm(sLat, sLon, rLat, rLon);
+                }
+                farthest = spots.MaxBy(s => s.DistanceKm);
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Could not load profile data: {ex.Message}";
+        }
+        finally
+        {
+            licenseLoading = false;
+            pskLoading     = false;
+            loading        = false;
+        }
+    }
+
+    private static double HaversineKm(double lat1, double lon1, double lat2, double lon2)
+    {
+        const double R = 6371;
+        double dLat = (lat2 - lat1) * Math.PI / 180;
+        double dLon = (lon2 - lon1) * Math.PI / 180;
+        double a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2)
+                 + Math.Cos(lat1 * Math.PI / 180) * Math.Cos(lat2 * Math.PI / 180)
+                 * Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+        return R * 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+    }
+
+    private static string ToTitleCase(string s) =>
+        System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(s.ToLowerInvariant());
+}

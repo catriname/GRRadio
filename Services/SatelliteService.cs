@@ -11,7 +11,7 @@ public class SatelliteService(HttpClient http)
     private List<SstvSatelliteStatus>? _sstvCache;
     private DateTime _sstvFetchedAt = DateTime.MinValue;
 
-    private const string AmsatTleUrl  = "https://www.amsat.org/tle/dailytle.txt";
+    private const string AmsatTleUrl   = "https://www.amsat.org/tle/dailytle.txt";
     private const string SstvStatusUrl = "https://amsat.org/status/api/v1/sat_info.php";
 
     // ── TLE Loading ───────────────────────────────────────────────────────────
@@ -165,9 +165,9 @@ public class SatelliteService(HttpClient http)
                     passes.Add(new SatellitePass
                     {
                         SatelliteName = tle.Name,
-                        AosTime       = aosTime.Value,
-                        TcaTime       = maxElTime,
-                        LosTime       = losTime,
+                        AosTime       = DateTime.SpecifyKind(aosTime.Value, DateTimeKind.Utc),
+                        TcaTime       = DateTime.SpecifyKind(maxElTime,     DateTimeKind.Utc),
+                        LosTime       = DateTime.SpecifyKind(losTime,       DateTimeKind.Utc),
                         MaxElevation  = Math.Round(maxEl, 1),
                         AosAzimuth    = aosAz,
                         TcaAzimuth    = tcaAz,

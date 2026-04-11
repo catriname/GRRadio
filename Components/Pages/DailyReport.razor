@@ -1,10 +1,17 @@
 @page "/"
 @using GRRadio.Models
 @using GRRadio.Services
+@implements IDisposable
 @inject SettingsService SettingsSvc
 @inject SolarWeatherService SolarService
 @inject HfConditionsService HfService
 @inject SatelliteService SatService
+@inject CallookService CallookSvc
+@inject PskReporterService PskSvc
+@inject PoTaService PoTaSvc
+@inject TravelDestinationService TravelSvc
+@inject QrzLogbookService QrzSvc
+@inject LoTwStatsService LoTwSvc
 @inject NavigationManager Nav
 
 <div class="page-header">
@@ -26,7 +33,7 @@
     </div>
 }
 
-<!-- Always-visible greeting -->
+<!-- ── Enhanced Greeting Card ────────────────────────────────── -->
 <div class="daily-header">
     <div class="daily-time-icon">
         @if (timeOfDay == "morning")
@@ -74,11 +81,125 @@
             </svg>
         }
     </div>
+
     <div class="daily-header-text">
-        <div class="daily-greeting-line">@greetingWord, @(settings?.Callsign is { Length: > 0 } cs ? cs : "operator").</div>
-        <div class="daily-date-line">@DateTime.Now.ToString("dddd, MMMM d")</div>
+        <div class="daily-greeting-line">
+            @greetingWord, @(settings?.Callsign is { Length: > 0 } cs ? cs : "operator").
+        </div>
+
+        @if (insights.Count > 0)
+        {
+            var insight = insights[insightIndex];
+            <div class="daily-insight-text">
+                @if (!string.IsNullOrEmpty(insight.BadgeText))
+                {
+                    <span class="license-badge @insight.BadgeCss">@insight.BadgeText</span>
+                }
+                @if (!string.IsNullOrEmpty(insight.Icon))
+                {
+                    <span class="daily-insight-icon">@insight.Icon</span>
+                }
+                @insight.Text
+            </div>
+            @if (!string.IsNullOrEmpty(insight.SubText))
+            {
+                <div class="daily-insight-sub">@insight.SubText</div>
+            }
+            @if (insights.Count > 1)
+            {
+                <div class="daily-insight-dots">
+                    @for (int i = 0; i < insights.Count; i++)
+                    {
+                        var idx = i; // capture for lambda
+                        <span class="insight-dot @(idx == insightIndex ? "insight-dot-active" : "")"
+                              @onclick="() => { insightIndex = idx; }"></span>
+                    }
+                </div>
+            }
+        }
+        else
+        {
+            <div class="daily-date-line">@DateTime.Now.ToString("dddd, MMMM d")</div>
+        }
     </div>
 </div>
+
+<!-- ── Destinations (collapsible) ───────────────────────────── -->
+@if (destinations.Count > 0 || destLoading)
+{
+    <div class="collapsible-header" @onclick="() => showDestinations = !showDestinations">
+        <h2>Destinations</h2>
+        <span class="collapse-chevron">@(showDestinations ? "▲" : "▼")</span>
+    </div>
+
+    @if (showDestinations)
+    {
+        @if (destLoading)
+        {
+            <div class="dest-card dest-skeleton">
+                <div class="dest-skeleton-img"></div>
+                <div class="dest-skeleton-text"></div>
+            </div>
+        }
+        else
+        {
+            @foreach (var dest in destinations)
+            {
+                <div class="dest-card">
+                    @if (!string.IsNullOrEmpty(dest.ImageUrl))
+                    {
+                        <img class="dest-image" src="@dest.ImageUrl" alt="@dest.Name"
+                             onerror="this.style.display='none'" loading="lazy" />
+                    }
+                    <div class="dest-body">
+                        <div class="dest-title-row">
+                            <span class="dest-name">@dest.Name</span>
+                            @if (!string.IsNullOrEmpty(dest.PotaReference))
+                            {
+                                <span class="dest-pota-ref">@dest.PotaReference</span>
+                            }
+                        </div>
+                        @if (!string.IsNullOrEmpty(dest.LocationName))
+                        {
+                            <div class="dest-location">@dest.LocationName</div>
+                        }
+                        @if (!string.IsNullOrEmpty(dest.Description))
+                        {
+                            <div class="dest-description">@dest.Description</div>
+                        }
+                        <div class="dest-stats">
+                            @if (!string.IsNullOrEmpty(dest.Grid))
+                            {
+                                <span class="dest-stat">
+                                    <span class="dest-stat-label">Grid</span>@dest.Grid
+                                </span>
+                            }
+                            @if (dest.DistanceKm > 0)
+                            {
+                                <span class="dest-stat">
+                                    <span class="dest-stat-label">Distance</span>@dest.DistanceDisplay
+                                </span>
+                            }
+                            @if (!string.IsNullOrEmpty(dest.SunriseUtc))
+                            {
+                                <span class="dest-stat">
+                                    <span class="dest-stat-label">@(dest.IsDay ? "☀ Day" : "☾ Night")</span>
+                                    ↑@dest.SunriseUtc ↓@dest.SunsetUtc UTC
+                                </span>
+                            }
+                            @if (dest.ActivatorCount > 0)
+                            {
+                                <span class="dest-stat">
+                                    <span class="dest-stat-label">Your activations</span>@dest.ActivatorCount
+                                </span>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+    }
+}
 
 <!-- ── Band Conditions (collapsible) ────────────────────────── -->
 <div class="collapsible-header" @onclick="() => showBands = !showBands">
@@ -121,7 +242,8 @@
 <!-- ── Upcoming Passes (collapsible) ────────────────────────── -->
 @if (settings!.SatellitesEnabled && settings.IsConfigured && passes.Count > 0)
 {
-    var visiblePasses = passes.Where(p => p.IsUpcoming).OrderBy(p => p.AosTime).ToList();
+    var visiblePasses = passes.Where(p => p.IsActive || p.IsUpcoming)
+                             .OrderBy(p => p.IsActive ? DateTime.MinValue : p.AosTime).ToList();
 
     <div class="collapsible-header" @onclick="() => showPasses = !showPasses">
         <h2>Upcoming Passes</h2>
@@ -133,8 +255,14 @@
         <div class="report-pass-list">
             @foreach (var p in visiblePasses.Take(passLimit))
             {
-                <div class="report-pass-item">
-                    <div class="report-pass-sat">@p.SatelliteName</div>
+                <div class="report-pass-item @(p.IsActive ? "pass-active" : "")">
+                    <div class="report-pass-sat">
+                        @p.SatelliteName
+                        @if (p.IsActive)
+                        {
+                            <span class="active-badge">● LIVE</span>
+                        }
+                    </div>
                     <div class="report-pass-desc">@p.AosTimeLocal → @p.LosTimeLocal · @p.AosDirection to @p.LosDirection</div>
                     <div class="report-pass-badge @p.PassQualityCss">@p.PassQuality · @p.MaxElevationStr</div>
                 </div>
@@ -149,7 +277,6 @@
     }
 }
 
-
 @if (!string.IsNullOrEmpty(errorMessage))
 {
     <div class="alert-card alert-error">@errorMessage</div>
@@ -157,16 +284,24 @@
 
 @code {
     private UserSettings? settings;
-    private SolarData? solar;
-    private List<BandCondition> bands = [];
+    private SolarData?    solar;
+    private List<BandCondition>    bands  = [];
     private List<SpaceWeatherAlert> alerts = [];
-    private List<SatellitePass> passes = [];
+    private List<SatellitePass>    passes = [];
+    private List<DestinationInfo>  destinations = [];
     private int passLimit = 5;
-    private bool loading = true;
+    private bool loading     = true;
+    private bool destLoading = false;
     private string errorMessage = "";
 
-    private bool showPasses = true;
-    private bool showBands  = true;
+    private bool showBands        = true;
+    private bool showPasses       = true;
+    private bool showDestinations = true;
+
+    // ── Greeting insights rotation ────────────────────────────────
+    private List<GreetingInsight> insights  = [];
+    private int insightIndex = 0;
+    private System.Timers.Timer? _insightTimer;
 
     private string timeOfDay => DateTime.Now.Hour switch
     {
@@ -192,9 +327,17 @@
 
     private async Task LoadDataAsync()
     {
-        loading = true;
+        loading      = true;
         errorMessage = "";
-        passLimit = 5;
+        passLimit    = 5;
+        destinations = [];
+        destLoading  = false;
+
+        // Reset insights
+        _insightTimer?.Stop();
+        insights     = [];
+        insightIndex = 0;
+
         StateHasChanged();
 
         try
@@ -203,7 +346,6 @@
 
             var solarTask  = SolarService.GetCurrentAsync();
             var alertsTask = SolarService.GetAlertsAsync();
-
             await Task.WhenAll(solarTask, alertsTask);
 
             solar  = solarTask.Result;
@@ -212,8 +354,29 @@
             if (settings.IsConfigured)
             {
                 var (lat, lon) = SettingsService.MaidenheadToLatLon(settings.GridSquare);
-                bands = await HfService.GetBandConditionsAsync(lat, lon);
 
+                // Band conditions + insights load in parallel
+                var bandsTask    = HfService.GetBandConditionsAsync(lat, lon);
+                var insightsTask = LoadInsightsAsync(settings.Callsign, settings.GridSquare);
+
+                bands = await bandsTask;
+                _ = insightsTask;  // insights self-update via AddInsight → StateHasChanged
+
+                // Destinations
+                if (settings.TravelDestinations.Count > 0)
+                {
+                    destLoading = true;
+                    StateHasChanged();
+                    try
+                    {
+                        destinations = await TravelSvc.ResolveAllAsync(
+                            settings.TravelDestinations, lat, lon, settings.Callsign);
+                    }
+                    catch { /* non-fatal */ }
+                    finally { destLoading = false; }
+                }
+
+                // Satellites
                 if (settings.SatellitesEnabled)
                 {
                     try
@@ -227,7 +390,6 @@
                         errorMessage = "Satellite pass data unavailable.";
                     }
                 }
-
             }
         }
         catch (Exception ex)
@@ -240,4 +402,197 @@
         }
     }
 
+    // ── Insight builders ──────────────────────────────────────────
+
+    private async Task LoadInsightsAsync(string callsign, string gridSquare)
+    {
+        try
+        {
+            // Seed with date immediately
+            AddInsight(new GreetingInsight
+            {
+                Icon = "",
+                Text = DateTime.Now.ToString("dddd, MMMM d")
+            });
+
+            // Fire all remote lookups in parallel
+            var licenseTask = CallookSvc.LookupAsync(callsign);
+            var pskTask     = PskSvc.GetRecentSpotsAsync(callsign, hoursBack: 24);
+            var potaTask    = PoTaSvc.GetActivationCountAsync(callsign);
+            var qrzTask     = string.IsNullOrEmpty(settings?.QrzApiKey)
+                                  ? Task.FromResult<QrzStats?>(null)
+                                  : QrzSvc.GetStatsAsync(settings.QrzApiKey);
+            var lotwTask    = (string.IsNullOrEmpty(settings?.LoTwUsername) || string.IsNullOrEmpty(settings?.LoTwPassword))
+                                  ? Task.FromResult<LoTwStats?>(null)
+                                  : LoTwSvc.GetStatsAsync(settings.LoTwUsername, settings.LoTwPassword);
+
+            // License (fast — usually returns first)
+            var license = await licenseTask;
+            if (license is not null && !string.IsNullOrEmpty(license.ClassShort))
+            {
+                var yearsText = license.YearsLicensed > 0
+                    ? $" · Licensed {license.YearsLicensed} year{(license.YearsLicensed == 1 ? "" : "s")}"
+                    : "";
+                AddInsight(new GreetingInsight
+                {
+                    BadgeText = license.ClassShort,
+                    BadgeCss  = license.ClassCss,
+                    Text      = yearsText
+                });
+            }
+
+            // PSK Reporter — farthest heard (digital modes)
+            var spots = await pskTask;
+            if (spots.Count > 0 && !string.IsNullOrEmpty(gridSquare))
+            {
+                var (sLat, sLon) = SettingsService.MaidenheadToLatLon(gridSquare);
+                foreach (var s in spots)
+                {
+                    var (rLat, rLon) = SettingsService.MaidenheadToLatLon(s.ReceiverLocator);
+                    s.DistanceKm = HaversineKm(sLat, sLon, rLat, rLon);
+                }
+                var farthest = spots.MaxBy(s => s.DistanceKm);
+                if (farthest is not null && farthest.DistanceKm > 50)
+                {
+                    AddInsight(new GreetingInsight
+                    {
+                        Icon    = "📡 ",
+                        Text    = $"Your signal reached {farthest.DistanceDisplay}",
+                        SubText = $"{farthest.ReceiverCallsign} · {farthest.ReceiverLocator} · {farthest.Band} {farthest.Mode} · {farthest.TimeAgo}"
+                    });
+                }
+            }
+
+            // POTA activation count
+            var potaCount = await potaTask;
+            if (potaCount > 0)
+            {
+                AddInsight(new GreetingInsight
+                {
+                    Icon = "🌲 ",
+                    Text = $"You've activated {potaCount} POTA park{(potaCount == 1 ? "" : "s")}"
+                });
+            }
+
+            // QRZ Logbook insights
+            var qrz = await qrzTask;
+            if (qrz is not null)
+            {
+                if (qrz.TotalQsos > 0)
+                {
+                    AddInsight(new GreetingInsight
+                    {
+                        Icon = "📖 ",
+                        Text = $"You've logged {qrz.TotalQsos:N0} QSOs"
+                    });
+                }
+                if (!string.IsNullOrEmpty(qrz.LastCall))
+                {
+                    var when = qrz.LastDate.HasValue
+                        ? qrz.LastDate.Value.ToString("MMM d")
+                        : "recently";
+                    AddInsight(new GreetingInsight
+                    {
+                        Icon    = "🤝 ",
+                        Text    = $"Last contact: {qrz.LastCall}",
+                        SubText = $"{qrz.LastBand} {qrz.LastMode} · {when}"
+                    });
+                }
+            }
+
+            // LoTW award progress insights
+            var lotw = await lotwTask;
+            if (lotw is not null)
+            {
+                if (lotw.ConfirmedQsos > 0)
+                {
+                    AddInsight(new GreetingInsight
+                    {
+                        Icon = "✅ ",
+                        Text = $"{lotw.ConfirmedQsos:N0} QSOs confirmed via LoTW"
+                    });
+                }
+
+                if (lotw.ConfirmedDxcc > 0)
+                {
+                    var dxcc = lotw.ConfirmedDxcc;
+                    // Milestone messaging
+                    string dxccText = dxcc >= 335
+                        ? $"🌍 {dxcc}/340 DXCC — Honor Roll!"
+                        : dxcc >= 300
+                            ? $"🌍 {dxcc}/340 DXCC confirmed — {340 - dxcc} to go"
+                            : dxcc >= 100
+                                ? $"🌍 {dxcc} DXCC entities confirmed"
+                                : $"🌍 {dxcc} DXCC entities confirmed";
+
+                    var dxccSub = dxcc < 100
+                        ? $"{100 - dxcc} more entities until DXCC award"
+                        : dxcc < 150
+                            ? $"{150 - dxcc} more until DXCC 150"
+                            : dxcc < 200
+                                ? $"{200 - dxcc} more until DXCC 200"
+                                : dxcc < 300
+                                    ? $"{300 - dxcc} more until DXCC 300"
+                                    : dxcc < 335
+                                        ? $"{335 - dxcc} more until Honor Roll"
+                                        : "";
+
+                    AddInsight(new GreetingInsight
+                    {
+                        Text    = dxccText,
+                        SubText = dxccSub
+                    });
+                }
+
+                if (lotw.ConfirmedWas > 0)
+                {
+                    var was = lotw.ConfirmedWas;
+                    var wasText = was == 50
+                        ? "🗺️ WAS complete — all 50 states confirmed!"
+                        : $"🗺️ {was}/50 WAS states confirmed";
+                    var wasSub = was < 50
+                        ? $"{50 - was} state{(50 - was == 1 ? "" : "s")} to go for WAS"
+                        : "";
+                    AddInsight(new GreetingInsight
+                    {
+                        Text    = wasText,
+                        SubText = wasSub
+                    });
+                }
+            }
+        }
+        catch { /* insights are non-critical */ }
+    }
+
+    private void AddInsight(GreetingInsight insight)
+    {
+        insights.Add(insight);
+        if (insights.Count == 2) StartInsightTimer();
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void StartInsightTimer()
+    {
+        _insightTimer?.Dispose();
+        _insightTimer = new System.Timers.Timer(5000) { AutoReset = true };
+        _insightTimer.Elapsed += (_, _) =>
+        {
+            insightIndex = (insightIndex + 1) % Math.Max(1, insights.Count);
+            InvokeAsync(StateHasChanged);
+        };
+        _insightTimer.Start();
+    }
+
+    public void Dispose() => _insightTimer?.Dispose();
+
+    private static double HaversineKm(double lat1, double lon1, double lat2, double lon2)
+    {
+        const double R = 6371;
+        double dLat = (lat2 - lat1) * Math.PI / 180;
+        double dLon = (lon2 - lon1) * Math.PI / 180;
+        double a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2)
+                 + Math.Cos(lat1 * Math.PI / 180) * Math.Cos(lat2 * Math.PI / 180)
+                 * Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+        return R * 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+    }
 }

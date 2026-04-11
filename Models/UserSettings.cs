@@ -13,6 +13,12 @@ public class UserSettings
     public bool DarkMode { get; set; } = true;
     public bool DailyReportEnabled { get; set; } = false;
     public bool SatellitesEnabled { get; set; } = false;
+    public List<TravelDestination> TravelDestinations { get; set; } = [];
+
+    // Logbook & Awards (optional — only used if non-empty)
+    public string QrzApiKey    { get; set; } = string.Empty;
+    public string LoTwUsername { get; set; } = string.Empty;
+    public string LoTwPassword { get; set; } = string.Empty;
 
     public bool IsConfigured => !string.IsNullOrWhiteSpace(Callsign) && !string.IsNullOrWhiteSpace(GridSquare);
 

@@ -1,7 +1,9 @@
 @page "/settings"
 @using GRRadio.Models
 @using GRRadio.Services
+@using System.Text.RegularExpressions
 @inject SettingsService SettingsSvc
+@inject QrzLogbookService QrzSvc
 @inject NavigationManager Nav
 
 <div class="page-header">
@@ -65,19 +67,45 @@
         </div>
 
         <div class="form-group">
-            <label class="form-label">Satellite Watchlist</label>
-            <div class="watchlist">
-                @foreach (var sat in watchlist)
+            <label class="form-label">Satellites to Track</label>
+
+            @foreach (var group in SatCatalog.GroupBy(s => s.Mode))
+            {
+                <div class="sat-group-label">@group.Key</div>
+                @foreach (var sat in group)
+                {
+                    <label class="sat-catalog-item">
+                        <input type="checkbox"
+                               checked="@IsSatWatched(sat.Name)"
+                               @onchange="e => ToggleSat(sat.Name, (bool)e.Value!)" />
+                        <div class="sat-catalog-info">
+                            <span class="sat-catalog-name">@sat.Name</span>
+                            <span class="sat-catalog-notes">@sat.Freq</span>
+                        </div>
+                    </label>
+                }
+            }
+
+            @{
+                var customSats = watchlist
+                    .Where(w => !SatCatalog.Any(s => s.Name.Equals(w, StringComparison.OrdinalIgnoreCase)))
+                    .ToList();
+            }
+            @if (customSats.Count > 0)
+            {
+                <div class="sat-group-label">Custom</div>
+                @foreach (var sat in customSats)
                 {
                     <div class="watchlist-item">
                         <span>@sat</span>
                         <button class="watchlist-remove" @onclick="() => RemoveSat(sat)">✕</button>
                     </div>
                 }
-            </div>
-            <div class="watchlist-add">
+            }
+
+            <div class="watchlist-add" style="margin-top: 8px;">
                 <input class="form-input" type="text"
-                       placeholder="Add satellite name…"
+                       placeholder="Add unlisted satellite…"
                        @bind="newSatName"
                        @onkeyup="OnSatKeyUp" />
                 <button class="btn-secondary" @onclick="AddSat">Add</button>
@@ -114,6 +142,50 @@
         </div>
     </div>
 
+    <!-- Logbook & Awards -->
+    <div class="settings-section">
+        <h3 class="settings-section-title">Logbook & Awards</h3>
+        <span class="form-hint" style="display:block; margin-bottom: 12px;">
+            Connect your logbook to track recent contacts and accomplishments. Used only for motivational insights on the Daily tab — credentials are stored locally on your device.
+        </span>
+
+        <div class="form-group">
+            <label class="form-label">QRZ Logbook API Key</label>
+            <input class="form-input" type="password"
+                   placeholder="Your QRZ API key"
+                   @bind="qrzApiKey"
+                   maxlength="64" />
+            <span class="form-hint">Found in QRZ.com → Logbook → Settings</span>
+            <div style="display:flex; align-items:center; gap:10px; margin-top:6px;">
+                <button class="btn-ghost" @onclick="TestQrzKey"
+                        disabled="@(qrzTesting || string.IsNullOrWhiteSpace(qrzApiKey))">
+                    @(qrzTesting ? "Testing…" : "Test Connection")
+                </button>
+                @if (!string.IsNullOrEmpty(qrzTestMessage))
+                {
+                    <span class="form-hint @(qrzTestValid ? "hint-success" : "hint-error")">@qrzTestMessage</span>
+                }
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">LoTW Username</label>
+            <input class="form-input" type="text"
+                   placeholder="Your ARRL LoTW username"
+                   @bind="lotwUsername"
+                   maxlength="32" />
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">LoTW Password</label>
+            <input class="form-input" type="password"
+                   placeholder="Your ARRL LoTW password"
+                   @bind="lotwPassword"
+                   maxlength="64" />
+            <span class="form-hint">Used to fetch confirmed DXCC / WAS award progress</span>
+        </div>
+    </div>
+
     <!-- App Settings -->
     <div class="settings-section">
         <h3 class="settings-section-title">App</h3>
@@ -139,6 +211,35 @@
         </button>
     </div>
 
+    <!-- Travel / Destinations -->
+    <div class="settings-section">
+        <h3 class="settings-section-title">Travel</h3>
+        <span class="form-hint" style="display:block; margin-bottom: 12px;">
+            Add POTA references (K-1234) or location names. Destination cards appear on the Daily tab.
+        </span>
+
+        <div class="watchlist">
+            @foreach (var dest in travelDestinations)
+            {
+                <div class="watchlist-item">
+                    <span class="dest-badge @(dest.IsPota ? "dest-pota" : "dest-place")">
+                        @(dest.IsPota ? "POTA" : "Place")
+                    </span>
+                    <span>@dest.Input</span>
+                    <button class="watchlist-remove" @onclick="() => RemoveDest(dest)">✕</button>
+                </div>
+            }
+        </div>
+
+        <div class="watchlist-add">
+            <input class="form-input" type="text"
+                   placeholder="K-1234 or place name…"
+                   @bind="newDestInput"
+                   @onkeyup="OnDestKeyUp" />
+            <button class="btn-secondary" @onclick="AddDest">Add</button>
+        </div>
+    </div>
+
     <!-- Save -->
     <div class="settings-actions">
         <button class="btn-primary" @onclick="Save">Save Settings</button>
@@ -156,6 +257,57 @@
 }
 
 @code {
+    // ── Satellite catalog ─────────────────────────────────────────
+    private record SatEntry(string Name, string Mode, string Freq);
+
+    private static readonly SatEntry[] SatCatalog =
+    [
+        // FM Voice
+        new("ISS (ZARYA)", "FM Voice",    "145.800 ↓ · APRS 145.825"),
+        new("SO-50",       "FM Voice",    "145.850 ↓ · 67.0 Hz PL up"),
+        new("AO-91",       "FM Voice",    "145.960 ↓ · FOX-1B"),
+        new("AO-92",       "FM Voice",    "145.880 ↓ · FOX-1D"),
+        new("PO-101",      "FM Voice",    "145.900 ↓ · Diwata-2"),
+        new("TEVEL-1",     "FM Voice",    "435.600 ↓"),
+        new("TEVEL-2",     "FM Voice",    "435.600 ↓"),
+        new("LILACSAT-2",  "FM Voice",    "437.200 ↓"),
+        // Linear / SSB
+        new("RS-44",       "Linear / SSB","145.935 ↓ · 435.640 ↑"),
+        new("FO-29",       "Linear / SSB","145.900 ↓ · 435.800 ↑ · JAS-2"),
+        new("AO-7",        "Linear / SSB","145.975 ↓ · Mode B · oldest active sat"),
+        new("XW-2A",       "Linear / SSB","145.670 ↓ · CAS-3A"),
+        new("CAS-4A",      "Linear / SSB","435.210 ↓"),
+        new("CAS-4B",      "Linear / SSB","435.280 ↓"),
+    ];
+
+    private bool IsSatWatched(string name) =>
+        watchlist.Any(w => w.Equals(name, StringComparison.OrdinalIgnoreCase));
+
+    private void ToggleSat(string name, bool add)
+    {
+        if (add && !IsSatWatched(name))
+            watchlist.Add(name);
+        else if (!add)
+            watchlist.RemoveAll(w => w.Equals(name, StringComparison.OrdinalIgnoreCase));
+    }
+
+    // ── QRZ test ──────────────────────────────────────────────────
+    private bool   qrzTesting     = false;
+    private bool   qrzTestValid   = false;
+    private string qrzTestMessage = "";
+
+    private async Task TestQrzKey()
+    {
+        qrzTesting     = true;
+        qrzTestMessage = "";
+        StateHasChanged();
+        var (valid, msg) = await QrzSvc.ValidateAsync(qrzApiKey.Trim());
+        qrzTestValid   = valid;
+        qrzTestMessage = msg;
+        qrzTesting     = false;
+    }
+
+    // ── Form state ────────────────────────────────────────────────
     private string callsign = "";
     private string gridSquare = "";
     private int minElevation = 10;
@@ -167,6 +319,11 @@
     private bool satellitesEnabled = false;
     private string newSatName = "";
     private string newSubName = "";
+    private string newDestInput = "";
+    private List<TravelDestination> travelDestinations = [];
+    private string qrzApiKey    = "";
+    private string lotwUsername = "";
+    private string lotwPassword = "";
     private string locationMessage = "";
     private string saveMessage = "";
     private bool saveSuccess = false;
@@ -178,11 +335,15 @@
         gridSquare   = s.GridSquare;
         minElevation = s.MinSatElevation;
         watchlist        = [.. s.SatelliteWatchlist];
-        newsSubreddits   = [.. s.NewsSubreddits];
-        alertsEnabled       = s.AlertsEnabled;
+        newsSubreddits       = [.. s.NewsSubreddits];
+        travelDestinations   = [.. s.TravelDestinations];
+        alertsEnabled        = s.AlertsEnabled;
         darkMode            = s.DarkMode;
         dailyReportEnabled  = s.DailyReportEnabled;
         satellitesEnabled   = s.SatellitesEnabled;
+        qrzApiKey           = s.QrzApiKey;
+        lotwUsername        = s.LoTwUsername;
+        lotwPassword        = s.LoTwPassword;
     }
 
     private void Save()
@@ -212,10 +373,14 @@
             MinSatElevation    = minElevation,
             SatelliteWatchlist = watchlist,
             NewsSubreddits     = newsSubreddits,
+            TravelDestinations = travelDestinations,
             AlertsEnabled       = alertsEnabled,
             DarkMode            = darkMode,
             DailyReportEnabled  = dailyReportEnabled,
-            SatellitesEnabled   = satellitesEnabled
+            SatellitesEnabled   = satellitesEnabled,
+            QrzApiKey           = qrzApiKey.Trim(),
+            LoTwUsername        = lotwUsername.Trim(),
+            LoTwPassword        = lotwPassword
         });
 
         saveMessage = "Settings saved!";
@@ -282,6 +447,23 @@
     private void OnSubKeyUp(KeyboardEventArgs e)
     {
         if (e.Key == "Enter") AddSub();
+    }
+
+    private void AddDest()
+    {
+        var input = newDestInput.Trim();
+        if (!string.IsNullOrEmpty(input) && !travelDestinations.Any(d => d.Input.Equals(input, StringComparison.OrdinalIgnoreCase)))
+        {
+            travelDestinations.Add(new TravelDestination { Input = input });
+            newDestInput = "";
+        }
+    }
+
+    private void RemoveDest(TravelDestination dest) => travelDestinations.Remove(dest);
+
+    private void OnDestKeyUp(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") AddDest();
     }
 
     private void Cancel() => Nav.NavigateTo("/");
