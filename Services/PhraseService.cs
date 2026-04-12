@@ -21,7 +21,21 @@ public class PhraseService
         var all = await GetAllPhrasesAsync();
         if (all.Count == 0)
             return new Phrase { Text = "The ionosphere is waiting. Get on the air!", Category = "general" };
-        return all[Random.Shared.Next(all.Count)];
+
+        var timeCategory = DateTime.Now.Hour switch
+        {
+            >= 5 and < 12  => "morning",
+            >= 17 and < 21 => "evening",
+            _              => null
+        };
+
+        var filtered = all.Where(p =>
+            p.Category is "general" or "wellness" or "dx" ||
+            (timeCategory != null && p.Category == timeCategory)
+        ).ToList();
+
+        var pool = filtered.Count > 0 ? filtered : all;
+        return pool[Random.Shared.Next(pool.Count)];
     }
 
     public List<Phrase> GetUserPhrases()
