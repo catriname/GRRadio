@@ -4,6 +4,7 @@
 @implements IDisposable
 @inject SettingsService SettingsSvc
 @inject SolarWeatherService SolarService
+@inject HfConditionsService HfService
 @inject SatelliteService SatService
 @inject PskReporterService PskSvc
 @inject TravelDestinationService TravelSvc
@@ -364,7 +365,7 @@
                 // Band conditions + insights load in parallel
                 var insightsTask = LoadInsightsAsync(settings.Callsign, settings.GridSquare);
 
-                bands = PropagationEngine.Evaluate(solar!, DateTime.UtcNow, lat, lon);
+                bands = await HfService.GetBandConditionsAsync(lat, lon);
                 _ = insightsTask;  // insights self-update via AddInsight → StateHasChanged
 
                 // Destinations

@@ -1,51 +1,129 @@
+using System.Text.Json.Nodes;
 using System.Xml.Linq;
 using GRRadio.Models;
 
 namespace GRRadio.Services;
 
 /// <summary>
-/// Fetches current HF band condition ratings from the N0NBH/HamQSL solar XML feed,
-/// which publishes real propagation assessments for 80m-40m, 30m-17m, and 15m-10m.
+/// Fetches HF band conditions.
+/// Primary:  grrwx.atomicbliss.dev API (physics + spot blending, per-location)
+/// Fallback: N0NBH/HamQSL solar XML feed
 /// </summary>
 public class HfConditionsService(HttpClient http)
 {
-    private const string FeedUrl = "https://www.hamqsl.com/solarxml.php";
+    private const string GrrwxUrl  = "https://grrwx.atomicbliss.dev/api/conditions";
+    private const string HamQslUrl = "https://www.hamqsl.com/solarxml.php";
     private static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(15);
 
-    // Raw band groups from the XML: group name → (day rating, night rating)
-    private Dictionary<string, (string Day, string Night)>? _rawGroups;
-    private double _sfi = 100;
-    private double _kp  = 2;
+    private List<BandCondition>? _cached;
+    private double _cachedLat = double.NaN;
+    private double _cachedLon = double.NaN;
     private DateTime _fetchedAt = DateTime.MinValue;
 
     // ── Public API ─────────────────────────────────────────────────────────────
 
     public async Task<List<BandCondition>> GetBandConditionsAsync(double lat, double lon)
     {
-        if (_rawGroups is null || DateTime.UtcNow - _fetchedAt > CacheDuration)
-            await FetchAsync();
+        bool locationChanged = Math.Abs(lat - _cachedLat) > 0.5 || Math.Abs(lon - _cachedLon) > 0.5;
 
-        bool isDay = IsLocalDay(DateTime.UtcNow, lat, lon);
-        return BuildConditions(isDay);
+        if (_cached is not null && !locationChanged && DateTime.UtcNow - _fetchedAt < CacheDuration)
+            return _cached;
+
+        var result = await TryGrrwxAsync(lat, lon)
+                  ?? await TryHamQslAsync(lat, lon);
+
+        _cached    = result;
+        _cachedLat = lat;
+        _cachedLon = lon;
+        _fetchedAt = DateTime.UtcNow;
+        return result;
     }
 
-    // ── Fetch & Parse ──────────────────────────────────────────────────────────
+    // ── Primary: grrwx.atomicbliss.dev ────────────────────────────────────────
 
-    private async Task FetchAsync()
+    private async Task<List<BandCondition>?> TryGrrwxAsync(double lat, double lon)
     {
         try
         {
-            var xml = await http.GetStringAsync(FeedUrl);
+            var url  = $"{GrrwxUrl}?lat={lat:F4}&lon={lon:F4}";
+            var json = await http.GetStringAsync(url);
+            var root = JsonNode.Parse(json);
+            var bands = root?["bands"]?.AsArray();
+            if (bands is null || bands.Count == 0) return null;
+
+            var conditions = new List<BandCondition>();
+            foreach (var b in bands)
+            {
+                if (b is null) continue;
+                var band   = b["band"]?.GetValue<string>() ?? "";
+                var freq   = b["frequencyRange"]?.GetValue<string>() ?? "";
+                var rating = ParseGrrwxRating(b["rating"]?.GetValue<string>());
+                var mode   = b["bestMode"]?.GetValue<string>() ?? "";
+                var hint   = b["timeHint"]?.GetValue<string>();
+                var notes  = b["notes"]?.GetValue<string>();
+                var paths  = b["openPaths"]?.AsArray()
+                              .Select(p => p?.GetValue<string>() ?? "")
+                              .Where(p => p != "")
+                              .ToList() ?? [];
+
+                var summary = notes ?? hint ?? SummaryFromRating(band, rating);
+
+                conditions.Add(new BandCondition
+                {
+                    Band           = band,
+                    FrequencyRange = freq,
+                    Rating         = rating,
+                    Summary        = summary,
+                    GoodRegions    = paths,
+                    BestMode       = mode,
+                    TimeOfDay      = hint ?? "",
+                    IsNightBand    = band is "40m" or "60m" or "80m" or "160m",
+                    IsHighBand     = band is "6m"  or "10m" or "12m" or "15m",
+                });
+            }
+
+            return conditions.Count > 0 ? conditions : null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static BandRating ParseGrrwxRating(string? s) => s switch
+    {
+        "Excellent" => BandRating.Excellent,
+        "Good"      => BandRating.Good,
+        "Fair"      => BandRating.Fair,
+        "Poor"      => BandRating.Poor,
+        _           => BandRating.Closed,
+    };
+
+    // ── Fallback: HamQSL XML ───────────────────────────────────────────────────
+
+    private async Task<List<BandCondition>> TryHamQslAsync(double lat, double lon)
+    {
+        double sfi = 100, kp = 2;
+        Dictionary<string, (string Day, string Night)> rawGroups = new()
+        {
+            ["80m-40m"] = ("Fair", "Good"),
+            ["30m-17m"] = ("Fair", "Fair"),
+            ["15m-10m"] = ("Fair", "Poor"),
+        };
+
+        try
+        {
+            var xml = await http.GetStringAsync(HamQslUrl);
             var doc = XDocument.Parse(xml);
             var sd  = doc.Root!.Element("solardata")!;
 
-            if (double.TryParse(sd.Element("solarflux")?.Value, out var sfi)) _sfi = sfi;
-            if (double.TryParse(sd.Element("kindex")?.Value,    out var kp))  _kp  = kp;
+            if (double.TryParse(sd.Element("solarflux")?.Value, out var s)) sfi = s;
+            if (double.TryParse(sd.Element("kindex")?.Value,    out var k)) kp  = k;
 
             var calc = sd.Element("calculatedconditions");
             if (calc is not null)
             {
-                _rawGroups = calc.Elements("band")
+                rawGroups = calc.Elements("band")
                     .GroupBy(e => e.Attribute("name")?.Value ?? "")
                     .Where(g => g.Key != "")
                     .ToDictionary(
@@ -56,74 +134,50 @@ public class HfConditionsService(HttpClient http)
                         )
                     );
             }
-
-            _fetchedAt = DateTime.UtcNow;
         }
-        catch
-        {
-            // Fallback to neutral conditions so the app still renders
-            _rawGroups ??= new Dictionary<string, (string, string)>
-            {
-                ["80m-40m"] = ("Fair", "Good"),
-                ["30m-17m"] = ("Fair", "Fair"),
-                ["15m-10m"] = ("Fair", "Poor"),
-            };
-        }
-    }
+        catch { /* use defaults */ }
 
-    // ── Condition Builder ──────────────────────────────────────────────────────
-
-    private List<BandCondition> BuildConditions(bool isDay)
-    {
-        var t = isDay ? "day" : "night";
+        bool isDay = IsLocalDay(DateTime.UtcNow, lat, lon);
 
         string Raw(string group) =>
-            _rawGroups!.TryGetValue(group, out var v)
-                ? (isDay ? v.Day : v.Night)
-                : "Fair";
+            rawGroups.TryGetValue(group, out var v) ? (isDay ? v.Day : v.Night) : "Fair";
 
-        // HamQSL groups: 15m-10m covers the high bands, 30m-17m the middle, 80m-40m the low bands.
-        // 20m behaves closer to 30m-17m at its frequency (14 MHz sits just below the group).
-        var high   = Raw("15m-10m");
-        var mid    = Raw("30m-17m");
-        var low    = Raw("80m-40m");
+        BandRating ParseRating(string condition, bool canExcellent = false) => condition switch
+        {
+            "Good"        => canExcellent && sfi > 150 && kp < 2 ? BandRating.Excellent : BandRating.Good,
+            "Fair"        => BandRating.Fair,
+            "Poor"        => BandRating.Poor,
+            "Band Closed" => BandRating.Closed,
+            _             => BandRating.Fair,
+        };
+
+        BandRating Get6m()
+        {
+            if (!isDay) return BandRating.Closed;
+            if (sfi > 180 && kp < 3) return BandRating.Good;
+            if (DateTime.UtcNow.Month is >= 5 and <= 8) return BandRating.Fair;
+            return BandRating.Closed;
+        }
+
+        var high = Raw("15m-10m");
+        var mid  = Raw("30m-17m");
+        var low  = Raw("80m-40m");
 
         return
         [
-            MakeBand("6m",  "50.0–54.0 MHz",     false, true,  Get6mRating(isDay)),
-            MakeBand("10m", "28.0–29.7 MHz",      false, true,  ParseRating(high, canExcellent: true)),
-            MakeBand("12m", "24.890–24.990 MHz",  false, true,  ParseRating(high, canExcellent: true)),
-            MakeBand("15m", "21.0–21.45 MHz",     false, true,  ParseRating(high, canExcellent: true)),
-            MakeBand("17m", "18.068–18.168 MHz",  false, false, ParseRating(mid)),
-            MakeBand("20m", "14.0–14.35 MHz",     false, false, ParseRating(mid,  canExcellent: true)),
-            MakeBand("30m", "10.1–10.15 MHz",     false, false, ParseRating(mid)),
-            MakeBand("40m", "7.0–7.3 MHz",        true,  false, ParseRating(low)),
-            MakeBand("80m", "3.5–4.0 MHz",        true,  false, ParseRating(low)),
+            MakeBand("6m",  "50.0–54.0 MHz",            false, true,  Get6m()),
+            MakeBand("10m", "28.0–29.7 MHz",             false, true,  ParseRating(high, canExcellent: true)),
+            MakeBand("12m", "24.890–24.990 MHz",         false, true,  ParseRating(high, canExcellent: true)),
+            MakeBand("15m", "21.0–21.45 MHz",            false, true,  ParseRating(high, canExcellent: true)),
+            MakeBand("17m", "18.068–18.168 MHz",         false, false, ParseRating(mid)),
+            MakeBand("20m", "14.0–14.35 MHz",            false, false, ParseRating(mid, canExcellent: true)),
+            MakeBand("30m", "10.1–10.15 MHz",            false, false, ParseRating(mid)),
+            MakeBand("40m", "7.0–7.3 MHz",               true,  false, ParseRating(low)),
+            MakeBand("80m", "3.5–4.0 MHz",               true,  false, ParseRating(low)),
         ];
     }
 
-    private BandRating Get6mRating(bool isDay)
-    {
-        if (!isDay) return BandRating.Closed;
-        if (_sfi > 180 && _kp < 3) return BandRating.Good;
-        if (IsSummerMonth())        return BandRating.Fair;
-        return BandRating.Closed;
-    }
-
-    /// <summary>
-    /// Maps HamQSL's text rating to our enum.
-    /// "Good" is promoted to Excellent when SFI and Kp support it on bands that can go Excellent.
-    /// </summary>
-    private BandRating ParseRating(string condition, bool canExcellent = false) => condition switch
-    {
-        "Good"        => canExcellent && _sfi > 150 && _kp < 2 ? BandRating.Excellent : BandRating.Good,
-        "Fair"        => BandRating.Fair,
-        "Poor"        => BandRating.Poor,
-        "Band Closed" => BandRating.Closed,
-        _             => BandRating.Fair,
-    };
-
-    // ── Band Card Info ─────────────────────────────────────────────────────────
+    // ── Helpers ────────────────────────────────────────────────────────────────
 
     private static BandCondition MakeBand(
         string name, string freq, bool isNight, bool isHigh, BandRating rating)
@@ -140,6 +194,12 @@ public class HfConditionsService(HttpClient http)
             IsNightBand    = isNight,
             IsHighBand     = isHigh,
         };
+    }
+
+    private static string SummaryFromRating(string band, BandRating rating)
+    {
+        var (summary, _, _) = BandDetails(band, rating);
+        return summary;
     }
 
     private static (string Summary, List<string> Regions, string Mode) BandDetails(
@@ -210,9 +270,6 @@ public class HfConditionsService(HttpClient http)
         _ => ("No data", [], ""),
     };
 
-    // ── Solar Time Helpers ─────────────────────────────────────────────────────
-
-    /// <summary>Returns true if the sun is above the horizon at lat/lon right now.</summary>
     private static bool IsLocalDay(DateTime utc, double lat, double lon)
     {
         const double Deg2Rad = Math.PI / 180;
@@ -227,11 +284,5 @@ public class HfConditionsService(HttpClient http)
         if (offset >  12) offset -= 24;
         if (offset < -12) offset += 24;
         return Math.Abs(offset) < ha / 15.0;
-    }
-
-    private static bool IsSummerMonth()
-    {
-        var m = DateTime.UtcNow.Month;
-        return m is >= 5 and <= 8;
     }
 }
