@@ -7,7 +7,7 @@
     },
     {
       "id": "b002",
-      "text": "Ham radio is meditation with antennas. You're already doing it right.",
+      "text": "Ham radio is meditation with radio waves. You're already doing it right.",
       "category": "wellness"
     },
     {
@@ -17,12 +17,12 @@
     },
     {
       "id": "b004",
-      "text": "The shack is your sanctuary. You earned this time.",
+      "text": "The shack is your sanctuary. Find your order.",
       "category": "wellness"
     },
     {
       "id": "b005",
-      "text": "Turning knobs, listening, making contact — this is presence. This is flow.",
+      "text": "Turn the knobs, listen, and make contact — this is presence. This is flow.",
       "category": "wellness"
     },
     {
@@ -46,18 +46,8 @@
       "category": "general"
     },
     {
-      "id": "b010",
-      "text": "You called CQ into the void and someone answered. That never gets old.",
-      "category": "general"
-    },
-    {
-      "id": "b011",
-      "text": "The pileup breaks. Your callsign gets through. Pure joy.",
-      "category": "dx"
-    },
-    {
       "id": "b012",
-      "text": "One perfect contact with someone on the other side of the planet. That's the whole reason.",
+      "text": "You called into the void and a human answered. From the other side of the world.",
       "category": "dx"
     },
     {
@@ -84,21 +74,6 @@
       "id": "b017",
       "text": "Morning gray line — where the night hands the bands to the day. Best few minutes in radio.",
       "category": "morning"
-    },
-    {
-      "id": "b018",
-      "text": "The low bands open at sunset. The world gets quieter. You found your frequency.",
-      "category": "evening"
-    },
-    {
-      "id": "b019",
-      "text": "40m at night is the universe saying 'slow down.' It's worth listening to.",
-      "category": "evening"
-    },
-    {
-      "id": "b020",
-      "text": "Evening rag chew: proof that strangers with a common frequency become friends.",
-      "category": "evening"
     },
     {
       "id": "b021",
@@ -148,6 +123,86 @@
     {
       "id": "b030",
       "text": "Log the contact. Write the date. That moment was real, and it's yours forever.",
+      "category": "general"
+    },
+    {
+      "id": "b031",
+      "text": "You can tune in any time you like, but you can never really leave.",
+      "category": "general"
+    },
+    {
+      "id": "b032",
+      "text": "Every signal you make, every QSO you take — someone somewhere is listening.",
+      "category": "general"
+    },
+    {
+      "id": "b033",
+      "text": "The antenna doesn't care what happened today. It just listens.",
+      "category": "wellness"
+    },
+    {
+      "id": "b034",
+      "text": "You can't rush propagation. You can't rush recovery. Both take time.",
+      "category": "wellness"
+    },
+    {
+      "id": "b035",
+      "text": "A quiet band is not a failed session. It's just listening practice.",
+      "category": "wellness"
+    },
+    {
+      "id": "b036",
+      "text": "The rig doesn't know your deadlines. Spend an hour in its world.",
+      "category": "wellness"
+    },
+    {
+      "id": "b037",
+      "text": "Nobody on 20 meters knows what kind of day you had. Start fresh.",
+      "category": "wellness"
+    },
+    {
+      "id": "b038",
+      "text": "You don't need to work anyone. Sometimes just listening is enough.",
+      "category": "wellness"
+    },
+    {
+      "id": "b039",
+      "text": "The bands close every night. So can you.",
+      "category": "wellness"
+    },
+    {
+      "id": "b040",
+      "text": "Headphones on. World off. This is the protocol.",
+      "category": "wellness"
+    },
+    {
+      "id": "b041",
+      "text": "The noise floor is always there. You learn to find the signal anyway. Good practice for everything else.",
+      "category": "wellness"
+    },
+    {
+      "id": "b042",
+      "text": "There's no algorithm deciding what you hear on 40 meters. Just physics. Just you.",
+      "category": "wellness"
+    },
+    {
+      "id": "b044",
+      "text": "You built something that works. Remember that when everything else feels broken.",
+      "category": "wellness"
+    },
+    {
+      "id": "b045",
+      "text": "Every frequency is a question. Every contact is an answer.",
+      "category": "general"
+    },
+    {
+      "id": "b046",
+      "text": "The signal was always there. You just had to know where to listen.",
+      "category": "general"
+    },
+    {
+      "id": "b047",
+      "text": "Tune slowly. The best signals hide just off center.",
       "category": "general"
     }
   ]
