@@ -41,10 +41,10 @@
 
     <ItemGroup>
         <!-- App Icon -->
-        <MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" Color="#3D1A08" />
+        <MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" Color="#1c1107" />
 
         <!-- Splash Screen -->
-        <MauiSplashScreen Include="Resources\Images\grr_logo.png" Color="#0F0806" BaseSize="512,512" />
+        <MauiSplashScreen Include="Resources\Images\grr_logo.png" Color="#1c1107" BaseSize="512,512" />
 
         <!-- Images -->
         <MauiImage Include="Resources\Images\*" Exclude="Resources\Images\grr_logo.png" />

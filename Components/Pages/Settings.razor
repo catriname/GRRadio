@@ -4,6 +4,7 @@
 @using System.Text.RegularExpressions
 @inject SettingsService SettingsSvc
 @inject QrzLogbookService QrzSvc
+@inject SatelliteService SatSvc
 @inject NavigationManager Nav
 
 <div class="page-header">
@@ -67,28 +68,65 @@
         </div>
 
         <div class="form-group">
-            <label class="form-label">Satellites to Track</label>
+            <div class="collapsible-header" style="margin-bottom:0;" @onclick="() => showSatCatalog = !showSatCatalog">
+                <label class="form-label" style="pointer-events:none;">
+                    Satellites to Track
+                    @if (watchlist.Count > 0)
+                    {
+                        <span class="sat-selected-count">@watchlist.Count selected</span>
+                    }
+                </label>
+                <span class="collapse-chevron">@(showSatCatalog ? "▲" : "▼")</span>
+            </div>
 
-            @foreach (var group in SatCatalog.GroupBy(s => s.Mode))
+            @if (showSatCatalog)
             {
-                <div class="sat-group-label">@group.Key</div>
-                @foreach (var sat in group)
-                {
-                    <label class="sat-catalog-item">
-                        <input type="checkbox"
-                               checked="@IsSatWatched(sat.Name)"
-                               @onchange="e => ToggleSat(sat.Name, (bool)e.Value!)" />
-                        <div class="sat-catalog-info">
-                            <span class="sat-catalog-name">@sat.Name</span>
-                            <span class="sat-catalog-notes">@sat.Freq</span>
+                <div class="sat-catalog-container">
+                    <input class="form-input sat-catalog-search" type="text"
+                           placeholder="Filter satellites…"
+                           @bind="satFilter"
+                           @bind:event="oninput" />
+
+                    @if (satCatalogLoading)
+                    {
+                        <div class="form-hint" style="padding:8px;">Loading satellite list…</div>
+                    }
+                    else
+                    {
+                        var filtered = string.IsNullOrWhiteSpace(satFilter)
+                            ? satCatalog
+                            : satCatalog.Where(s =>
+                                s.Name.Contains(satFilter, StringComparison.OrdinalIgnoreCase) ||
+                                s.Freq.Contains(satFilter, StringComparison.OrdinalIgnoreCase)).ToList();
+
+                        <div class="sat-catalog-scroll">
+                            @foreach (var group in filtered.GroupBy(s => s.Mode))
+                            {
+                                <div class="sat-group-label">@group.Key</div>
+                                @foreach (var sat in group)
+                                {
+                                    <label class="sat-catalog-item">
+                                        <input type="checkbox"
+                                               checked="@IsSatWatched(sat.Name)"
+                                               @onchange="e => ToggleSat(sat.Name, (bool)e.Value!)" />
+                                        <div class="sat-catalog-info">
+                                            <span class="sat-catalog-name">@sat.Name</span>
+                                            @if (!string.IsNullOrEmpty(sat.Freq))
+                                            {
+                                                <span class="sat-catalog-notes">@sat.Freq</span>
+                                            }
+                                        </div>
+                                    </label>
+                                }
+                            }
                         </div>
-                    </label>
-                }
+                    }
+                </div>
             }
 
             @{
                 var customSats = watchlist
-                    .Where(w => !SatCatalog.Any(s => s.Name.Equals(w, StringComparison.OrdinalIgnoreCase)))
+                    .Where(w => !satCatalog.Any(s => s.Name.Equals(w, StringComparison.OrdinalIgnoreCase)))
                     .ToList();
             }
             @if (customSats.Count > 0)
@@ -244,25 +282,41 @@
     // ── Satellite catalog ─────────────────────────────────────────
     private record SatEntry(string Name, string Mode, string Freq);
 
-    private static readonly SatEntry[] SatCatalog =
-    [
-        // FM Voice
-        new("ISS (ZARYA)", "FM Voice",    "145.800 ↓ · APRS 145.825"),
-        new("SO-50",       "FM Voice",    "145.850 ↓ · 67.0 Hz PL up"),
-        new("AO-91",       "FM Voice",    "145.960 ↓ · FOX-1B"),
-        new("AO-92",       "FM Voice",    "145.880 ↓ · FOX-1D"),
-        new("PO-101",      "FM Voice",    "145.900 ↓ · Diwata-2"),
-        new("TEVEL-1",     "FM Voice",    "435.600 ↓"),
-        new("TEVEL-2",     "FM Voice",    "435.600 ↓"),
-        new("LILACSAT-2",  "FM Voice",    "437.200 ↓"),
-        // Linear / SSB
-        new("RS-44",       "Linear / SSB","145.935 ↓ · 435.640 ↑"),
-        new("FO-29",       "Linear / SSB","145.900 ↓ · 435.800 ↑ · JAS-2"),
-        new("AO-7",        "Linear / SSB","145.975 ↓ · Mode B · oldest active sat"),
-        new("XW-2A",       "Linear / SSB","145.670 ↓ · CAS-3A"),
-        new("CAS-4A",      "Linear / SSB","435.210 ↓"),
-        new("CAS-4B",      "Linear / SSB","435.280 ↓"),
-    ];
+    // Known frequency/mode info — everything else from TLE shows as "Other"
+    private static readonly Dictionary<string, (string Mode, string Freq)> KnownSats =
+        new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["ISS (ZARYA)"] = ("FM Voice",    "145.800 ↓ · APRS 145.825"),
+        ["ISS"]         = ("FM Voice",    "145.800 ↓ · APRS 145.825"),
+        ["SO-50"]       = ("FM Voice",    "145.850 ↓ · 67.0 Hz PL up"),
+        ["AO-91"]       = ("FM Voice",    "145.960 ↓ · FOX-1B"),
+        ["AO-92"]       = ("FM Voice",    "145.880 ↓ · FOX-1D"),
+        ["PO-101"]      = ("FM Voice",    "145.900 ↓ · Diwata-2"),
+        ["TEVEL-1"]     = ("FM Voice",    "435.600 ↓"),
+        ["TEVEL-2"]     = ("FM Voice",    "435.600 ↓"),
+        ["LILACSAT-2"]  = ("FM Voice",    "437.200 ↓"),
+        ["IO-86"]       = ("FM Voice",    "435.880 ↓"),
+        ["AO-27"]       = ("FM Voice",    "436.795 ↓"),
+        ["HO-113"]      = ("FM Voice",    "436.100 ↓"),
+        ["RS-44"]       = ("Linear / SSB","145.935 ↓ · 435.640 ↑"),
+        ["FO-29"]       = ("Linear / SSB","145.900 ↓ · 435.800 ↑"),
+        ["AO-07"]       = ("Linear / SSB","145.975 ↓ · Mode B"),
+        ["AO-73"]       = ("Linear / SSB","145.950 ↓ · 435.130 ↑"),
+        ["JO-97"]       = ("Linear / SSB","145.855 ↓ · 435.100 ↑"),
+        ["XW-2A"]       = ("Linear / SSB","145.670 ↓"),
+        ["CAS-4A"]      = ("Linear / SSB","435.210 ↓"),
+        ["CAS-4B"]      = ("Linear / SSB","435.280 ↓"),
+        ["LO-74"]       = ("Linear / SSB","436.675 ↓"),
+        ["TO-108"]      = ("Linear / SSB","145.915 ↓ · 435.315 ↑"),
+        ["QO-100"]      = ("Linear / SSB","10489.5 MHz ↓ · 2400 MHz ↑"),
+        ["RS-22"]       = ("CW / Beacon", "435.352 ↓"),
+        ["AO-95"]       = ("CW / Beacon", "145.880 ↓"),
+    };
+
+    private List<SatEntry> satCatalog = [];
+    private bool satCatalogLoading = false;
+    private bool showSatCatalog = false;
+    private string satFilter = "";
 
     private bool IsSatWatched(string name) =>
         watchlist.Any(w => w.Equals(name, StringComparison.OrdinalIgnoreCase));
@@ -310,20 +364,52 @@
     private string saveMessage = "";
     private bool saveSuccess = false;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         var s = SettingsSvc.Load();
-        callsign     = s.Callsign;
-        gridSquare   = s.GridSquare;
-        minElevation = s.MinSatElevation;
-        watchlist        = [.. s.SatelliteWatchlist];
-        newsSubreddits       = [.. s.NewsSubreddits];
-        travelDestinations   = [.. s.TravelDestinations];
-        alertsEnabled        = s.AlertsEnabled;
-        darkMode            = s.DarkMode;
-        dailyReportEnabled  = s.DailyReportEnabled;
-        satellitesEnabled   = s.SatellitesEnabled;
-        qrzApiKey           = s.QrzApiKey;
+        callsign           = s.Callsign;
+        gridSquare         = s.GridSquare;
+        minElevation       = s.MinSatElevation;
+        watchlist          = [.. s.SatelliteWatchlist];
+        newsSubreddits     = [.. s.NewsSubreddits];
+        travelDestinations = [.. s.TravelDestinations];
+        alertsEnabled      = s.AlertsEnabled;
+        darkMode           = s.DarkMode;
+        dailyReportEnabled = s.DailyReportEnabled;
+        satellitesEnabled  = s.SatellitesEnabled;
+        qrzApiKey          = s.QrzApiKey;
+
+        await LoadSatCatalogAsync();
+    }
+
+    private async Task LoadSatCatalogAsync()
+    {
+        satCatalogLoading = true;
+        try
+        {
+            var names = await SatSvc.GetSatelliteNamesAsync();
+            satCatalog = names.Select(name =>
+            {
+                if (KnownSats.TryGetValue(name, out var info))
+                    return new SatEntry(name, info.Mode, info.Freq);
+                return new SatEntry(name, "Other", "");
+            })
+            .OrderBy(s => s.Mode == "Other" ? 1 : 0)
+            .ThenBy(s => s.Mode)
+            .ThenBy(s => s.Name)
+            .ToList();
+        }
+        catch
+        {
+            // Fall back to known sats only
+            satCatalog = KnownSats
+                .Select(kv => new SatEntry(kv.Key, kv.Value.Mode, kv.Value.Freq))
+                .OrderBy(s => s.Mode).ThenBy(s => s.Name).ToList();
+        }
+        finally
+        {
+            satCatalogLoading = false;
+        }
     }
 
     private void Save()

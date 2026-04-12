@@ -11,14 +11,14 @@ public class SatelliteService(HttpClient http)
     private List<SstvSatelliteStatus>? _sstvCache;
     private DateTime _sstvFetchedAt = DateTime.MinValue;
 
-    private const string AmsatTleUrl   = "https://www.amsat.org/tle/dailytle.txt";
+    private const string AmsatTleUrl   = "https://www.amsat.org/tle/current/dailytle.txt";
     private const string SstvStatusUrl = "https://amsat.org/status/api/v1/sat_info.php";
 
     // ── TLE Loading ───────────────────────────────────────────────────────────
 
     public async Task<List<TleParsed>> GetTlesAsync()
     {
-        if (_tleCache is not null && (DateTime.UtcNow - _tleFetchedAt).TotalHours < 24)
+        if (_tleCache is not null && (DateTime.UtcNow - _tleFetchedAt).TotalHours < 12)
             return _tleCache;
 
         _tleCache = await FetchTlesAsync();
@@ -60,6 +60,12 @@ public class SatelliteService(HttpClient http)
         }
 
         return parsed;
+    }
+
+    public async Task<List<string>> GetSatelliteNamesAsync()
+    {
+        var tles = await GetTlesAsync();
+        return tles.Select(t => t.Name).OrderBy(n => n).ToList();
     }
 
     // ── Pass Prediction ───────────────────────────────────────────────────────
