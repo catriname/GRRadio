@@ -9,6 +9,7 @@
 @inject PskReporterService PskSvc
 @inject TravelDestinationService TravelSvc
 @inject PhraseService PhraseSvc
+@inject IJSRuntime JS
 @inject NavigationManager Nav
 
 <div class="page-header">
@@ -438,21 +439,34 @@
                     SubText = solar is not null ? $"SFI {solar.SolarFluxIndex} · Kp {solar.KIndex}" : ""
                 });
 
-            // 3. Last spotted via PSK Reporter (72 h window)
-            var spots = await PskSvc.GetRecentSpotsAsync(callsign, hoursBack: 72);
-            var latest = spots.Count > 0 ? spots.MaxBy(s => s.Timestamp) : null;
+            // 3. Last spotted + farthest spot — single fetch (PSKReporter JSONP caps large windows)
+            var spots    = await PskSvc.GetRecentSpotsAsync(callsign, hoursBack: 24, JS);
+            var latest   = spots.Count > 0 ? spots.MaxBy(s => s.Timestamp) : null;
+            var farthest = PskSvc.GetFarthestSpotAsync(callsign, gridSquare, spots);
+
             if (latest is not null)
                 AddInsight(new GreetingInsight
                 {
                     Icon    = "📡 ",
                     Text    = $"Last spotted {latest.TimeAgo}",
-                    SubText = $"via {latest.ReceiverCallsign} · {latest.Band} {latest.Mode}"
+                    SubText = string.IsNullOrEmpty(latest.ReceiverCallsign)
+                        ? ""
+                        : $"via {latest.ReceiverCallsign} · {latest.Band} {latest.Mode}"
                 });
             else
                 AddInsight(new GreetingInsight
                 {
-                    Icon = "📡 ",
-                    Text = "No recent spots — get on the air!"
+                    Icon    = "📡 ",
+                    Text    = string.IsNullOrEmpty(PskSvc.LastError) ? "No recent spots — get on the air!" : "PSK Reporter unavailable",
+                    SubText = string.IsNullOrEmpty(PskSvc.LastError) ? "" : "Spot data will appear when the service recovers"
+                });
+
+            if (farthest is not null && farthest.DistanceKm > 0)
+                AddInsight(new GreetingInsight
+                {
+                    Icon    = "🌍 ",
+                    Text    = $"Farthest spot: {farthest.DistanceDisplay}",
+                    SubText = $"via {farthest.ReceiverCallsign} · {farthest.Band} {farthest.Mode} (24h)"
                 });
         }
         catch { /* insights are non-critical */ }

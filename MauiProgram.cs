@@ -52,11 +52,7 @@ public static class MauiProgram
 			client.DefaultRequestHeaders.Add("User-Agent", "GRRadio/1.0 (ham radio operator app)");
 			client.Timeout = TimeSpan.FromSeconds(10);
 		});
-		builder.Services.AddHttpClient<PskReporterService>(client =>
-		{
-			client.DefaultRequestHeaders.Add("User-Agent", "GRRadio/1.0 (ham radio operator app)");
-			client.Timeout = TimeSpan.FromSeconds(20);
-		});
+		builder.Services.AddSingleton<PskReporterService>();
 		builder.Services.AddHttpClient<PoTaService>(client =>
 		{
 			client.DefaultRequestHeaders.Add("User-Agent", "GRRadio/1.0 (ham radio POTA app)");

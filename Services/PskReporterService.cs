@@ -1,102 +1,132 @@
 using GRRadio.Models;
-using System.Text.Json.Nodes;
+using Microsoft.JSInterop;
+using System.Text.Json;
 
 namespace GRRadio.Services;
 
 /// <summary>
 /// Queries PSK Reporter for recent reception reports of a given callsign.
-/// No authentication required. Used to find the farthest station that heard you.
+/// PSKReporter blocks server-side HTTP; uses JS JSONP interop (fetchPskReporter)
+/// when IJSRuntime is supplied.
 /// </summary>
-public class PskReporterService(HttpClient http)
+public class PskReporterService
 {
     private static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(15);
 
-    private string _cachedCall = "";
-    private List<PskSpot>? _cachedSpots;
-    private DateTime _fetchedAt = DateTime.MinValue;
+    // Cache keyed on callsign + hoursBack so 72h and 2160h are stored separately
+    private readonly Dictionary<string, (List<PskSpot> Spots, DateTime FetchedAt)> _cache = [];
 
-    public async Task<List<PskSpot>> GetRecentSpotsAsync(string callsign, int hoursBack = 24)
+    public async Task<List<PskSpot>> GetRecentSpotsAsync(string callsign, int hoursBack = 24, IJSRuntime? js = null)
     {
         if (string.IsNullOrWhiteSpace(callsign))
             return [];
 
         callsign = callsign.Trim().ToUpperInvariant();
+        var key  = $"{callsign}:{hoursBack}";
 
-        if (_cachedCall == callsign &&
-            _cachedSpots is not null &&
-            DateTime.UtcNow - _fetchedAt < CacheDuration)
-            return _cachedSpots;
+        if (_cache.TryGetValue(key, out var entry) &&
+            DateTime.UtcNow - entry.FetchedAt < CacheDuration)
+            return entry.Spots;
 
-        _cachedCall  = callsign;
-        _cachedSpots = await FetchAsync(callsign, hoursBack);
-        _fetchedAt   = DateTime.UtcNow;
-        return _cachedSpots;
+        var spots = await FetchAsync(callsign, hoursBack, js);
+        _cache[key] = (spots, DateTime.UtcNow);
+        return spots;
     }
 
     /// <summary>
-    /// Returns the single spot with the greatest distance from the sender's grid square.
+    /// Returns the single spot with the greatest distance from the sender's grid square,
+    /// computed from an already-fetched spot list (avoids a second PSKReporter request).
     /// </summary>
-    public async Task<PskSpot?> GetFarthestSpotAsync(string callsign, string senderGrid, int hoursBack = 24)
+    public PskSpot? GetFarthestSpotAsync(string callsign, string senderGrid, List<PskSpot> spots)
     {
-        var spots = await GetRecentSpotsAsync(callsign, hoursBack);
-        if (spots.Count == 0)
+        var candidates = spots.Where(s => s.ReceiverLocator.Length >= 4).ToList();
+        if (candidates.Count == 0)
             return null;
 
         var (sLat, sLon) = SettingsService.MaidenheadToLatLon(senderGrid);
 
-        foreach (var spot in spots)
+        foreach (var spot in candidates)
         {
             var (rLat, rLon) = SettingsService.MaidenheadToLatLon(spot.ReceiverLocator);
             spot.DistanceKm = HaversineKm(sLat, sLon, rLat, rLon);
         }
 
-        return spots.MaxBy(s => s.DistanceKm);
+        return candidates.MaxBy(s => s.DistanceKm);
     }
+
+    // ── Diagnostics ────────────────────────────────────────────────────────────
+
+    public string LastError { get; private set; } = "";
 
     // ── Fetch ──────────────────────────────────────────────────────────────────
 
-    private async Task<List<PskSpot>> FetchAsync(string callsign, int hoursBack)
+    private async Task<List<PskSpot>> FetchAsync(string callsign, int hoursBack, IJSRuntime? js)
     {
         try
         {
-            var seconds = hoursBack * -3600;
-            var url = $"https://retrieve.pskreporter.info/query" +
-                      $"?senderCallsign={callsign}" +
-                      $"&flowStartSeconds={seconds}" +
-                      $"&rronly=1" +
-                      $"&format=json";
-
-            var json   = await http.GetStringAsync(url);
-            var node   = JsonNode.Parse(json);
-            var reports = node?["receptionReports"]?.AsArray();
-
-            if (reports is null)
-                return [];
-
-            var spots = new List<PskSpot>();
-            foreach (var r in reports)
+            if (js is null)
             {
-                if (r is null) continue;
-
-                var locator = r["receiverLocator"]?.GetValue<string>() ?? "";
-                if (locator.Length < 4) continue; // need at least 4-char grid
-
-                spots.Add(new PskSpot
-                {
-                    ReceiverCallsign = r["receiverCallsign"]?.GetValue<string>() ?? "",
-                    ReceiverLocator  = locator,
-                    SenderLocator    = r["senderLocator"]?.GetValue<string>() ?? "",
-                    Frequency        = r["frequency"]?.GetValue<double>() ?? 0,
-                    Mode             = r["mode"]?.GetValue<string>() ?? "",
-                    SNR              = (int)(r["sNR"]?.GetValue<double>() ?? 0),
-                    Timestamp        = r["flowStartSeconds"]?.GetValue<long>() ?? 0
-                });
+                LastError = "JS interop unavailable — PSKReporter requires browser context";
+                return [];
             }
 
+            // Receive the full PSKReporter response object so we can inspect all keys
+            var data = await js.InvokeAsync<JsonElement>("fetchPskReporter", callsign, hoursBack);
+
+            // Try receptionReport first, then senderSearch, then activeCallsign
+            JsonElement reportsEl;
+            string sourceKey = "";
+            if (data.TryGetProperty("receptionReport", out reportsEl) && reportsEl.GetArrayLength() > 0)
+                sourceKey = "receptionReport";
+            else if (data.TryGetProperty("senderSearch", out reportsEl) && reportsEl.GetArrayLength() > 0)
+                sourceKey = "senderSearch";
+            else if (data.TryGetProperty("activeCallsign", out reportsEl) && reportsEl.GetArrayLength() > 0)
+                sourceKey = "activeCallsign";
+            else
+            {
+                var keys = string.Join(", ", data.EnumerateObject()
+                    .Select(p => $"{p.Name}{(p.Value.ValueKind == JsonValueKind.Array ? ":" + p.Value.GetArrayLength() : "")}"));
+                LastError = $"no spots. keys={keys}";
+                return [];
+            }
+
+            var spots = new List<PskSpot>();
+            foreach (var r in reportsEl.EnumerateArray())
+            {
+                if (sourceKey == "senderSearch")
+                {
+                    // senderSearch: aggregate entry — has timestamp but no individual receiver info
+                    long ts = r.TryGetProperty("recentFlowStartSeconds", out var tsEl) ? tsEl.GetInt64() : 0;
+                    if (ts > 0)
+                        spots.Add(new PskSpot { Timestamp = ts });
+                }
+                else
+                {
+                    // receptionReport / activeCallsign: individual spots
+                    var receiverCs = r.TryGetProperty("receiverCallsign", out var rc) ? rc.GetString() ?? ""
+                                   : r.TryGetProperty("callsign",         out var cs) ? cs.GetString() ?? "" : "";
+                    var receiverLoc = r.TryGetProperty("receiverLocator", out var rl) ? rl.GetString() ?? ""
+                                    : r.TryGetProperty("locator",         out var lo) ? lo.GetString() ?? "" : "";
+
+                    spots.Add(new PskSpot
+                    {
+                        ReceiverCallsign = receiverCs,
+                        ReceiverLocator  = receiverLoc,
+                        SenderLocator    = r.TryGetProperty("senderLocator",    out var sl) ? sl.GetString() ?? "" : "",
+                        Frequency        = r.TryGetProperty("frequency",        out var fr) ? fr.GetDouble() : 0,
+                        Mode             = r.TryGetProperty("mode",             out var mo) ? mo.GetString() ?? "" : "",
+                        SNR              = r.TryGetProperty("sNR",              out var snr) ? (int)snr.GetDouble() : 0,
+                        Timestamp        = r.TryGetProperty("flowStartSeconds", out var ts) ? ts.GetInt64() : 0
+                    });
+                }
+            }
+
+            LastError = spots.Count == 0 ? "no spots parsed" : "";
             return spots;
         }
-        catch
+        catch (Exception ex)
         {
+            LastError = ex.Message;
             return [];
         }
     }

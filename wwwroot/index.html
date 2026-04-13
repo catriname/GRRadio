@@ -25,6 +25,44 @@
 
     <script src="_framework/blazor.webview.js" autostart="false"></script>
 
+    <script>
+        window.fetchPskReporter = function (callsign, hours) {
+            return new Promise(function (resolve, reject) {
+                var callbackName = 'pskCallback' + Date.now();
+                var since = Math.floor(Date.now() / 1000) - (hours * 3600);
+                var url = 'https://retrieve.pskreporter.info/query' +
+                    '?senderCallsign=' + encodeURIComponent(callsign) +
+                    '&appcontact=catrina@k5grr.com' +
+                    '&callback=' + callbackName;
+
+                window[callbackName] = function (data) {
+                    delete window[callbackName];
+                    if (script.parentNode) document.body.removeChild(script);
+                    // Resolve with full data object so C# can inspect all keys
+                    resolve(data);
+                };
+
+                var script = document.createElement('script');
+                script.src = url;
+                script.onerror = function () {
+                    delete window[callbackName];
+                    if (script.parentNode) document.body.removeChild(script);
+                    reject(new Error('PSKReporter load failed'));
+                };
+
+                setTimeout(function () {
+                    if (window[callbackName]) {
+                        delete window[callbackName];
+                        if (script.parentNode) document.body.removeChild(script);
+                        reject(new Error('PSKReporter timeout'));
+                    }
+                }, 15000);
+
+                document.body.appendChild(script);
+            });
+        };
+    </script>
+
 </body>
 
 </html>
