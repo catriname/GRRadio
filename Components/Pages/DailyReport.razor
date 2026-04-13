@@ -444,14 +444,34 @@
             var latest   = spots.Count > 0 ? spots.MaxBy(s => s.Timestamp) : null;
             var farthest = PskSvc.GetFarthestSpotAsync(callsign, gridSquare, spots);
 
-            if (latest is not null)
+            // Persist fresh spot so we can fall back to it when PSKReporter is unavailable
+            if (latest is not null && latest.Timestamp > settings.LastSpotTimestamp)
+            {
+                settings.LastSpotTimestamp = latest.Timestamp;
+                settings.LastSpotCallsign  = latest.ReceiverCallsign;
+                settings.LastSpotBand      = latest.Band;
+                settings.LastSpotMode      = latest.Mode;
+                SettingsSvc.Save(settings);
+            }
+
+            // Use live data if available; fall back to last persisted spot
+            var displaySpot = latest ?? (settings.LastSpotTimestamp > 0
+                ? new PskSpot
+                {
+                    Timestamp        = settings.LastSpotTimestamp,
+                    ReceiverCallsign = settings.LastSpotCallsign,
+                    Mode             = settings.LastSpotMode
+                }
+                : null);
+
+            if (displaySpot is not null)
                 AddInsight(new GreetingInsight
                 {
                     Icon    = "📡 ",
-                    Text    = $"Last spotted {latest.TimeAgo}",
-                    SubText = string.IsNullOrEmpty(latest.ReceiverCallsign)
+                    Text    = $"Last spotted {displaySpot.TimeAgo}",
+                    SubText = string.IsNullOrEmpty(displaySpot.ReceiverCallsign)
                         ? ""
-                        : $"via {latest.ReceiverCallsign} · {latest.Band} {latest.Mode}"
+                        : $"via {displaySpot.ReceiverCallsign} · {displaySpot.Band} {displaySpot.Mode}"
                 });
             else
                 AddInsight(new GreetingInsight

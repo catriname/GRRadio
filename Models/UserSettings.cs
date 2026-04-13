@@ -18,5 +18,11 @@ public class UserSettings
     // Logbook & Awards (optional — only used if non-empty)
     public string QrzApiKey { get; set; } = string.Empty;
 
+    // Last known PSK Reporter spot (persisted so it survives service outages)
+    public long   LastSpotTimestamp { get; set; }   // Unix seconds; 0 = never seen
+    public string LastSpotCallsign  { get; set; } = string.Empty;
+    public string LastSpotBand      { get; set; } = string.Empty;
+    public string LastSpotMode      { get; set; } = string.Empty;
+
     public bool IsConfigured => !string.IsNullOrWhiteSpace(Callsign) && !string.IsNullOrWhiteSpace(GridSquare);
 }
