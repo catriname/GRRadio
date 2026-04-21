@@ -8,7 +8,7 @@ namespace GRRadio.Services;
 
 public class NewsService(HttpClient http)
 {
-    private const string DxFeedUrl = "https://dxnews.com/rss.xml";
+    private const string DxFeedUrl = "https://www.dx-world.net/rss";
 
     private (List<RedditPost> Posts, DateTime FetchedAt) _redditCache;
     private (List<DxNewsItem> Items, DateTime FetchedAt) _dxCache;

@@ -19,6 +19,8 @@ public static class MauiProgram
 
 		// GRRadio services
 		builder.Services.AddSingleton<SettingsService>();
+		builder.Services.AddSingleton<BluetoothKissService>();
+		builder.Services.AddSingleton<ChatHistoryService>();
 		builder.Services.AddSingleton<PhraseService>();
 		builder.Services.AddSingleton<DailyReportService>();
 		builder.Services.AddHttpClient<NewsService>(client =>

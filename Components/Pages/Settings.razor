@@ -2,10 +2,12 @@
 @using GRRadio.Models
 @using GRRadio.Services
 @using System.Text.RegularExpressions
+@using InTheHand.Net.Sockets
 @inject SettingsService SettingsSvc
 @inject QrzLogbookService QrzSvc
 @inject SatelliteService SatSvc
 @inject NavigationManager Nav
+@inject BluetoothKissService BtSvc
 
 <div class="page-header">
     <h1>Settings</h1>
@@ -262,6 +264,101 @@
         </div>
     </div>
 
+    <!-- APRS Chat -->
+    <div class="settings-section">
+        <h3 class="settings-section-title">APRS Chat</h3>
+
+        <div class="form-group toggle-group">
+            <label class="form-label">I have a BTECH UV Pro (or similar KISS TNC)</label>
+            <input type="checkbox" class="form-toggle" @bind="aprsEnabled" />
+        </div>
+
+        @if (aprsEnabled)
+        {
+        <span class="form-hint" style="display:block; margin-bottom: 12px;">
+            Connect via Bluetooth SPP to send and receive APRS messages.
+        </span>
+
+        <div class="form-group">
+            <label class="form-label">SSID</label>
+            <div class="slider-row">
+                <input type="range" min="0" max="15" step="1"
+                       @bind="aprsSSID" class="form-slider" />
+                <span class="slider-value">-@aprsSSID</span>
+            </div>
+            <span class="form-hint">Your station suffix (e.g. @(string.IsNullOrWhiteSpace(callsign) ? "N0CALL" : callsign)-@aprsSSID)</span>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">APRS Symbol</label>
+            <input class="form-input" type="text"
+                   placeholder="/-"
+                   @bind="aprsSymbol"
+                   maxlength="2" />
+            <span class="form-hint">2-char symbol code, e.g. /- (house), /> (car), /[ (person)</span>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Beacon Comment</label>
+            <input class="form-input" type="text"
+                   placeholder="GRRadio APRS"
+                   @bind="aprsComment"
+                   maxlength="43" />
+        </div>
+
+        <div class="form-group toggle-group">
+            <label class="form-label">Auto-Beacon</label>
+            <input type="checkbox" class="form-toggle" @bind="beaconEnabled" />
+        </div>
+
+        @if (beaconEnabled)
+        {
+            <div class="form-group">
+                <label class="form-label">Beacon Interval</label>
+                <div class="slider-row">
+                    <input type="range" min="60" max="1800" step="60"
+                           @bind="beaconInterval" class="form-slider" />
+                    <span class="slider-value">@(beaconInterval / 60)m</span>
+                </div>
+            </div>
+        }
+
+        <div class="form-group">
+            <label class="form-label">Bluetooth TNC Device</label>
+            @if (string.IsNullOrEmpty(btDeviceName))
+            {
+                <span class="form-hint">No device selected.</span>
+            }
+            else
+            {
+                <div class="watchlist-item" style="margin-bottom: 6px;">
+                    <span>@btDeviceName</span>
+                    <button class="watchlist-remove" @onclick="ClearBtDevice">✕</button>
+                </div>
+            }
+            <button class="btn-secondary" @onclick="ScanBtDevicesAsync" disabled="@btScanning">
+                @(btScanning ? "Scanning…" : "Scan for Devices")
+            </button>
+            @if (btDevices.Count > 0)
+            {
+                <div class="watchlist" style="margin-top: 8px;">
+                    @foreach (var d in btDevices)
+                    {
+                        <div class="watchlist-item" style="cursor:pointer;" @onclick="() => SelectBtDevice(d.DeviceName, d.DeviceAddress.ToString())">
+                            <span>@d.DeviceName</span>
+                            <span class="form-hint">@d.DeviceAddress</span>
+                        </div>
+                    }
+                </div>
+            }
+            @if (!string.IsNullOrEmpty(btScanMessage))
+            {
+                <span class="form-hint">@btScanMessage</span>
+            }
+        </div>
+        } @* end aprsEnabled *@
+    </div>
+
     <!-- Save -->
     <div class="settings-actions">
         <button class="btn-primary" @onclick="Save">Save Settings</button>
@@ -364,6 +461,19 @@
     private string saveMessage = "";
     private bool saveSuccess = false;
 
+    // APRS Chat
+    private bool   aprsEnabled     = false;
+    private int    aprsSSID        = 9;
+    private string aprsSymbol      = "/-";
+    private string aprsComment     = "GRRadio APRS";
+    private bool   beaconEnabled   = false;
+    private int    beaconInterval  = 600;
+    private string btDeviceName    = "";
+    private string btDeviceAddress = "";
+    private bool   btScanning      = false;
+    private string btScanMessage   = "";
+    private List<InTheHand.Net.Sockets.BluetoothDeviceInfo> btDevices = [];
+
     protected override async Task OnInitializedAsync()
     {
         var s = SettingsSvc.Load();
@@ -378,6 +488,14 @@
         dailyReportEnabled = s.DailyReportEnabled;
         satellitesEnabled  = s.SatellitesEnabled;
         qrzApiKey          = s.QrzApiKey;
+        aprsEnabled        = s.AprsEnabled;
+        aprsSSID           = s.AprsSSID;
+        aprsSymbol         = s.AprsSymbol;
+        aprsComment        = s.AprsComment;
+        beaconEnabled      = s.BeaconEnabled;
+        beaconInterval     = s.BeaconInterval;
+        btDeviceName       = s.BluetoothDeviceName;
+        btDeviceAddress    = s.BluetoothDeviceAddress;
 
         await LoadSatCatalogAsync();
     }
@@ -432,19 +550,27 @@
 
         SettingsSvc.Save(new UserSettings
         {
-            Callsign           = callsign.ToUpperInvariant().Trim(),
-            GridSquare         = gridSquare.ToUpperInvariant().Trim(),
-            Latitude           = lat,
-            Longitude          = lon,
-            MinSatElevation    = minElevation,
-            SatelliteWatchlist = watchlist,
-            NewsSubreddits     = newsSubreddits,
-            TravelDestinations = travelDestinations,
-            AlertsEnabled       = alertsEnabled,
-            DarkMode            = darkMode,
-            DailyReportEnabled  = dailyReportEnabled,
-            SatellitesEnabled   = satellitesEnabled,
-            QrzApiKey           = qrzApiKey.Trim()
+            Callsign              = callsign.ToUpperInvariant().Trim(),
+            GridSquare            = gridSquare.ToUpperInvariant().Trim(),
+            Latitude              = lat,
+            Longitude             = lon,
+            MinSatElevation       = minElevation,
+            SatelliteWatchlist    = watchlist,
+            NewsSubreddits        = newsSubreddits,
+            TravelDestinations    = travelDestinations,
+            AlertsEnabled         = alertsEnabled,
+            DarkMode              = darkMode,
+            DailyReportEnabled    = dailyReportEnabled,
+            SatellitesEnabled     = satellitesEnabled,
+            QrzApiKey             = qrzApiKey.Trim(),
+            AprsEnabled           = aprsEnabled,
+            AprsSSID              = aprsSSID,
+            AprsSymbol            = aprsSymbol.Trim(),
+            AprsComment           = aprsComment.Trim(),
+            BeaconEnabled         = beaconEnabled,
+            BeaconInterval        = beaconInterval,
+            BluetoothDeviceName   = btDeviceName,
+            BluetoothDeviceAddress = btDeviceAddress
         });
 
         saveMessage = "Settings saved!";
@@ -528,6 +654,32 @@
     private void OnDestKeyUp(KeyboardEventArgs e)
     {
         if (e.Key == "Enter") AddDest();
+    }
+
+    private async Task ScanBtDevicesAsync()
+    {
+        btScanning   = true;
+        btScanMessage = "";
+        btDevices    = [];
+        StateHasChanged();
+        var devices = await BtSvc.GetPairedDevicesAsync();
+        btDevices = devices.ToList();
+        btScanMessage = btDevices.Count == 0 ? "No paired devices found." : "";
+        btScanning = false;
+    }
+
+    private void SelectBtDevice(string name, string address)
+    {
+        btDeviceName    = name;
+        btDeviceAddress = address;
+        btDevices       = [];
+        btScanMessage   = "";
+    }
+
+    private void ClearBtDevice()
+    {
+        btDeviceName    = "";
+        btDeviceAddress = "";
     }
 
     private void Cancel() => Nav.NavigateTo("/");

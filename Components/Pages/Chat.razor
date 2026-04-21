@@ -1,0 +1,290 @@
+@page "/chat"
+@using GRRadio.Models
+@using GRRadio.Services
+@implements IDisposable
+@inject BluetoothKissService TncSvc
+@inject SettingsService SettingsSvc
+@inject ChatHistoryService HistorySvc
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+<div class="chat-page">
+<div class="page-header">
+    <h1>APRS Chat</h1>
+    <div class="chat-conn-badge @connBadgeClass">@connLabel</div>
+</div>
+
+<!-- TNC control bar -->
+<div class="chat-tnc-bar">
+    @if (tncState == TncState.Disconnected || tncState == TncState.Error)
+    {
+        <button class="btn-secondary" @onclick="ConnectAsync">
+            Connect TNC
+        </button>
+    }
+    else if (tncState == TncState.Connecting)
+    {
+        <button class="btn-secondary" disabled>Connecting…</button>
+    }
+    else
+    {
+        <button class="btn-ghost chat-disconnect-btn" @onclick="Disconnect">Disconnect</button>
+        <button class="btn-secondary" @onclick="SendBeaconAsync">Beacon</button>
+    }
+
+    @if (!string.IsNullOrEmpty(errorText))
+    {
+        <span class="chat-error-text">@errorText</span>
+    }
+</div>
+
+@if (!settings!.IsConfigured || string.IsNullOrWhiteSpace(settings.BluetoothDeviceAddress))
+{
+    <div class="alert-card alert-warn" style="margin-bottom: 12px;">
+        <strong>Setup required</strong> —
+        @if (!settings.IsConfigured)
+        {
+            <span>enter your callsign and grid in </span>
+        }
+        else
+        {
+            <span>select your Bluetooth TNC in </span>
+        }
+        <a @onclick='() => Nav.NavigateTo("/settings")' class="link">Settings</a>.
+    </div>
+}
+
+<!-- Message log -->
+<div class="chat-log" id="chat-log">
+    @foreach (var msg in messages)
+    {
+        <div class="chat-msg @GetMsgClass(msg)">
+            <span class="chat-ts">@msg.Timestamp.ToString("HH:mm")</span>
+            @if (msg.MessageType == AprsMessageType.SystemLog)
+            {
+                <span class="chat-callsign chat-sys-marker">***</span>
+                <span class="chat-text">@msg.Message</span>
+            }
+            else if (msg.MessageType == AprsMessageType.Beacon)
+            {
+                <span class="chat-callsign">@msg.From</span>
+                <span class="chat-arrow">≈</span>
+                <span class="chat-text">@msg.Message</span>
+            }
+            else
+            {
+                <span class="chat-callsign">@msg.From</span>
+                @if (!string.IsNullOrWhiteSpace(msg.To) && msg.To.Trim() is { Length: > 0 } to && to != "CQ")
+                {
+                    <span class="chat-arrow">→</span>
+                    <span class="chat-to">@to</span>
+                }
+                <span class="chat-text">@msg.Message</span>
+            }
+        </div>
+    }
+    <div @ref="logBottom"></div>
+</div>
+
+<!-- Compose area -->
+<div class="chat-compose-area">
+    <div class="chat-input-row">
+        <input class="form-input chat-msg-input" type="text"
+               placeholder="@(tncState == TncState.Connected ? "@N0CALL message… (or just type to CQ)" : "Connect TNC to chat")"
+               @bind="messageText"
+               @bind:event="oninput"
+               @onkeyup="OnKeyUp"
+               maxlength="80"
+               disabled="@(tncState != TncState.Connected)" />
+        <button class="chat-send-btn"
+                @onclick="SendAsync"
+                disabled="@(tncState != TncState.Connected || string.IsNullOrWhiteSpace(messageText))"
+                title="Send">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="22" y1="2" x2="11" y2="13"/>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+            </svg>
+        </button>
+    </div>
+</div>
+</div>
+
+@code {
+    private UserSettings? settings;
+    private TncState tncState = TncState.Disconnected;
+    private readonly List<AprsMessage> messages = [];
+    private string messageText  = "";
+    private string errorText    = "";
+    private bool   shouldScroll = false;
+    private ElementReference logBottom;
+
+    private string connLabel => tncState switch
+    {
+        TncState.Connected  => "Connected",
+        TncState.Connecting => "Connecting",
+        TncState.Error      => "Error",
+        _                   => "Offline"
+    };
+
+    private string connBadgeClass => tncState switch
+    {
+        TncState.Connected  => "badge-connected",
+        TncState.Connecting => "badge-connecting",
+        TncState.Error      => "badge-error",
+        _                   => "badge-offline"
+    };
+
+    private string GetMsgClass(AprsMessage msg) => msg.MessageType switch
+    {
+        AprsMessageType.SystemLog    => "msg-system",
+        AprsMessageType.Beacon       => "msg-beacon",
+        AprsMessageType.Acknowledgment => "msg-ack",
+        _ when msg.From == settings?.FullCallsign => "msg-own",
+        _ => "msg-other"
+    };
+
+    protected override void OnInitialized()
+    {
+        settings = SettingsSvc.Load();
+        tncState = TncSvc.State;
+
+        messages.AddRange(HistorySvc.Load());
+        shouldScroll = true;
+
+        TncSvc.StateChanged    += OnStateChanged;
+        TncSvc.MessageReceived += OnMessageReceived;
+        TncSvc.ErrorOccurred   += OnErrorOccurred;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (shouldScroll)
+        {
+            shouldScroll = false;
+            await JS.InvokeVoidAsync("eval",
+                "var e=document.getElementById('chat-log'); if(e) e.scrollTop=e.scrollHeight;");
+        }
+    }
+
+    private async Task ConnectAsync()
+    {
+        settings  = SettingsSvc.Load();
+        errorText = "";
+
+        if (string.IsNullOrWhiteSpace(settings.BluetoothDeviceAddress))
+        {
+            AddSystem("No Bluetooth TNC configured. Go to Settings → APRS Chat.");
+            return;
+        }
+
+        AddSystem($"Connecting to {settings.BluetoothDeviceName}…");
+        await TncSvc.ConnectAsync(settings.BluetoothDeviceAddress);
+    }
+
+    private void Disconnect() => TncSvc.Disconnect();
+
+    private async Task SendAsync()
+    {
+        if (string.IsNullOrWhiteSpace(messageText)) return;
+
+        string to, body;
+        if (messageText.StartsWith('@'))
+        {
+            var parts = messageText[1..].Split(' ', 2);
+            to   = parts[0].ToUpperInvariant().PadRight(9);
+            body = parts.Length > 1 ? parts[1] : "";
+        }
+        else
+        {
+            to   = "CQ      ";
+            body = messageText;
+        }
+
+        if (string.IsNullOrWhiteSpace(body)) return;
+
+        var success = await TncSvc.SendMessageAsync(to, body);
+
+        if (success)
+        {
+            settings = SettingsSvc.Load();
+            var sent = new AprsMessage
+            {
+                From        = settings.FullCallsign,
+                To          = to.Trim(),
+                Message     = body,
+                MessageType = AprsMessageType.UserMessage,
+                Timestamp   = DateTime.Now
+            };
+            messages.Add(sent);
+            HistorySvc.Add(sent);
+            messageText  = "";
+            shouldScroll = true;
+        }
+    }
+
+    private async Task SendBeaconAsync()
+    {
+        var ok = await TncSvc.SendBeaconAsync();
+        if (ok) AddSystem("Beacon sent.");
+        else    AddSystem("Beacon failed — check connection.");
+    }
+
+    private void OnKeyUp(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") _ = SendAsync();
+    }
+
+    private void OnStateChanged(object? sender, TncState state)
+    {
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            tncState  = state;
+            errorText = "";
+            if (state == TncState.Connected)    AddSystem("Connected.");
+            if (state == TncState.Disconnected) AddSystem("Disconnected.");
+            shouldScroll = true;
+            InvokeAsync(StateHasChanged);
+        });
+    }
+
+    private void OnMessageReceived(object? sender, AprsMessage msg)
+    {
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            messages.Add(msg);
+            HistorySvc.Add(msg);
+            shouldScroll = true;
+            InvokeAsync(StateHasChanged);
+        });
+    }
+
+    private void OnErrorOccurred(object? sender, string error)
+    {
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            errorText = error;
+            AddSystem($"Error: {error}");
+            shouldScroll = true;
+            InvokeAsync(StateHasChanged);
+        });
+    }
+
+    private void AddSystem(string text)
+    {
+        messages.Add(new AprsMessage
+        {
+            From        = "***",
+            Message     = text,
+            MessageType = AprsMessageType.SystemLog,
+            Timestamp   = DateTime.Now
+        });
+        shouldScroll = true;
+    }
+
+    public void Dispose()
+    {
+        TncSvc.StateChanged    -= OnStateChanged;
+        TncSvc.MessageReceived -= OnMessageReceived;
+        TncSvc.ErrorOccurred   -= OnErrorOccurred;
+    }
+}
