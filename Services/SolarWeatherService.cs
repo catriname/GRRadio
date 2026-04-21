@@ -5,24 +5,42 @@ using System.Text.RegularExpressions;
 
 namespace GRRadio.Services;
 
-public class SolarWeatherService(HttpClient http)
+public class SolarWeatherService(IHttpClientFactory httpFactory)
 {
+    private HttpClient Http => httpFactory.CreateClient("solarweather");
+
     private SolarData? _currentData;
     private List<ForecastEntry>? _forecast;
+    private DateTime _forecastFetchedAt = DateTime.MinValue;
     private List<SpaceWeatherAlert>? _alerts;
+    private DateTime _alertsFetchedAt = DateTime.MinValue;
+
+    private static readonly TimeSpan CurrentTtl  = TimeSpan.FromMinutes(60);
+    private static readonly TimeSpan AlertsTtl   = TimeSpan.FromMinutes(15);
+    private static readonly TimeSpan ForecastTtl = TimeSpan.FromHours(3);
 
     // ── Current Conditions ────────────────────────────────────────────────────
 
+    public void InvalidateCache()
+    {
+        _currentData       = null;
+        _forecast          = null;
+        _forecastFetchedAt = DateTime.MinValue;
+        _alerts            = null;
+        _alertsFetchedAt   = DateTime.MinValue;
+    }
+
     public async Task<SolarData> RefreshAsync()
     {
-        _currentData = null;
-        _forecast = null;
-        _alerts = null;
+        InvalidateCache();
         return await GetCurrentAsync();
     }
 
     public async Task<SolarData> GetCurrentAsync()
     {
+        if (_currentData is not null && DateTime.UtcNow - _currentData.FetchedAt < CacheDuration)
+            return _currentData;
+
         var sfi  = await FetchSolarFluxAsync();
         var kIdx = await FetchKIndexAsync();
         var (windSpeeds, bzValues) = await FetchSolarWindFullAsync();
@@ -44,7 +62,7 @@ public class SolarWeatherService(HttpClient http)
         try
         {
             var url = "https://services.swpc.noaa.gov/json/solar-cycle/observed-solar-cycle-indices.json";
-            var json = await http.GetStringAsync(url);
+            var json = await Http.GetStringAsync(url);
             var arr = JsonNode.Parse(json)?.AsArray();
             if (arr is null || arr.Count == 0) return 100;
             var last = arr[^1];
@@ -58,7 +76,7 @@ public class SolarWeatherService(HttpClient http)
         try
         {
             var url = "https://services.swpc.noaa.gov/json/planetary_k_index_1m.json";
-            var json = await http.GetStringAsync(url);
+            var json = await Http.GetStringAsync(url);
             var arr = JsonNode.Parse(json)?.AsArray();
             if (arr is null || arr.Count == 0) return 2;
             var last = arr[^1];
@@ -72,7 +90,7 @@ public class SolarWeatherService(HttpClient http)
         try
         {
             var url = "https://services.swpc.noaa.gov/json/rtsw/rtsw_mag_1m.json";
-            var json = await http.GetStringAsync(url);
+            var json = await Http.GetStringAsync(url);
             var arr = JsonNode.Parse(json)?.AsArray();
             if (arr is null) return ([], []);
 
@@ -94,10 +112,11 @@ public class SolarWeatherService(HttpClient http)
 
     public async Task<List<ForecastEntry>> GetForecastAsync()
     {
-        if (_forecast is not null)
+        if (_forecast is not null && DateTime.UtcNow - _forecastFetchedAt < ForecastTtl)
             return _forecast;
 
-        _forecast = await FetchForecastAsync();
+        _forecast          = await FetchForecastAsync();
+        _forecastFetchedAt = DateTime.UtcNow;
         return _forecast;
     }
 
@@ -109,7 +128,7 @@ public class SolarWeatherService(HttpClient http)
         {
             // NOAA 3-day forecast text
             var url = "https://services.swpc.noaa.gov/text/3-day-forecast.txt";
-            var text = await http.GetStringAsync(url);
+            var text = await Http.GetStringAsync(url);
             entries.AddRange(Parse3DayForecast(text));
         }
         catch { /* fall through to fallback */ }
@@ -217,10 +236,11 @@ public class SolarWeatherService(HttpClient http)
 
     public async Task<List<SpaceWeatherAlert>> GetAlertsAsync()
     {
-        if (_alerts is not null)
+        if (_alerts is not null && DateTime.UtcNow - _alertsFetchedAt < AlertsTtl)
             return _alerts;
 
-        _alerts = await FetchAlertsAsync();
+        _alerts          = await FetchAlertsAsync();
+        _alertsFetchedAt = DateTime.UtcNow;
         return _alerts;
     }
 
@@ -229,7 +249,7 @@ public class SolarWeatherService(HttpClient http)
         try
         {
             var url = "https://services.swpc.noaa.gov/products/alerts.json";
-            var json = await http.GetStringAsync(url);
+            var json = await Http.GetStringAsync(url);
             var arr = JsonNode.Parse(json)?.AsArray();
             if (arr is null) return [];
 

@@ -365,8 +365,80 @@
         <button class="btn-ghost" @onclick="Cancel">Cancel</button>
     </div>
 
+    <!-- About -->
+    <div style="text-align:center; padding: 16px 0 8px;">
+        <button class="btn-ghost about-link" @onclick="() => showAbout = true">About GRRadio</button>
+    </div>
 
 </div>
+
+@if (showAbout)
+{
+    <div class="modal-overlay" @onclick="() => showAbout = false">
+        <div class="modal-sheet" @onclick:stopPropagation>
+            <div class="modal-header">
+                <h2>About GRRadio</h2>
+                <button class="modal-close" @onclick="() => showAbout = false">✕</button>
+            </div>
+            <div class="modal-body">
+                <p class="about-tagline">A mobile ham radio companion built for the field and the shack.</p>
+
+                <h3 class="about-section-title">Data Sources</h3>
+
+                <div class="about-source">
+                    <span class="about-source-name">GRRadio Weather API</span>
+                    <span class="about-source-desc">HF band conditions — grrwx.atomicbliss.dev</span>
+                </div>
+                <div class="about-source">
+                    <span class="about-source-name">NOAA Space Weather</span>
+                    <span class="about-source-desc">Solar indices, Kp, geomagnetic data, and alerts — swpc.noaa.gov</span>
+                </div>
+                <div class="about-source">
+                    <span class="about-source-name">HamQSL</span>
+                    <span class="about-source-desc">Solar condition data (fallback) — hamqsl.com</span>
+                </div>
+                <div class="about-source">
+                    <span class="about-source-name">PSK Reporter</span>
+                    <span class="about-source-desc">Real-time signal reception reports — pskreporter.info</span>
+                </div>
+                <div class="about-source">
+                    <span class="about-source-name">AMSAT</span>
+                    <span class="about-source-desc">Satellite TLE data and operational status — amsat.org</span>
+                </div>
+                <div class="about-source">
+                    <span class="about-source-name">DX World</span>
+                    <span class="about-source-desc">DX expedition news — dx-world.net</span>
+                </div>
+                <div class="about-source">
+                    <span class="about-source-name">Reddit</span>
+                    <span class="about-source-desc">Ham radio community news — reddit.com</span>
+                </div>
+                <div class="about-source">
+                    <span class="about-source-name">Callook</span>
+                    <span class="about-source-desc">FCC callsign lookup — callook.info</span>
+                </div>
+                <div class="about-source">
+                    <span class="about-source-name">QRZ</span>
+                    <span class="about-source-desc">Logbook API and ham classifieds — qrz.com</span>
+                </div>
+                <div class="about-source">
+                    <span class="about-source-name">QTH Swap</span>
+                    <span class="about-source-desc">Ham radio classifieds — swap.qth.com</span>
+                </div>
+                <div class="about-source">
+                    <span class="about-source-name">Parks on the Air</span>
+                    <span class="about-source-desc">POTA park and activator data — api.pota.app</span>
+                </div>
+                <div class="about-source">
+                    <span class="about-source-name">Wikipedia</span>
+                    <span class="about-source-desc">Travel destination summaries — wikipedia.org</span>
+                </div>
+
+                <p class="about-footer">Made with ♥ by K5GRR</p>
+            </div>
+        </div>
+    </div>
+}
 
 @if (!string.IsNullOrEmpty(saveMessage))
 {
@@ -460,6 +532,7 @@
     private string locationMessage = "";
     private string saveMessage = "";
     private bool saveSuccess = false;
+    private bool showAbout = false;
 
     // APRS Chat
     private bool   aprsEnabled     = false;

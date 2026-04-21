@@ -9,11 +9,13 @@ namespace GRRadio.Services;
 /// Primary:  grrwx.atomicbliss.dev API (physics + spot blending, per-location)
 /// Fallback: N0NBH/HamQSL solar XML feed
 /// </summary>
-public class HfConditionsService(HttpClient http)
+public class HfConditionsService(IHttpClientFactory httpFactory)
 {
-    private const string GrrwxUrl  = "https://grrwx.atomicbliss.dev/api/conditions";
-    private const string HamQslUrl = "https://www.hamqsl.com/solarxml.php";
-    private static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(15);
+    private const string GrrwxUrl      = "https://grrwx.atomicbliss.dev/api/conditions";
+    private const string HamQslUrl     = "https://www.hamqsl.com/solarxml.php";
+    private const string ClientName    = "hfconditions";
+    private static readonly TimeSpan PrimaryTimeout = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(60);
 
     private List<BandCondition>? _cached;
     private double _cachedLat = double.NaN;
@@ -21,6 +23,12 @@ public class HfConditionsService(HttpClient http)
     private DateTime _fetchedAt = DateTime.MinValue;
 
     // ── Public API ─────────────────────────────────────────────────────────────
+
+    public void InvalidateCache()
+    {
+        _cached    = null;
+        _fetchedAt = DateTime.MinValue;
+    }
 
     public async Task<List<BandCondition>> GetBandConditionsAsync(double lat, double lon)
     {
@@ -45,8 +53,10 @@ public class HfConditionsService(HttpClient http)
     {
         try
         {
-            var url  = $"{GrrwxUrl}?lat={lat:F4}&lon={lon:F4}";
-            var json = await http.GetStringAsync(url);
+            using var cts  = new CancellationTokenSource(PrimaryTimeout);
+            var url        = $"{GrrwxUrl}?lat={lat:F4}&lon={lon:F4}";
+            var client     = httpFactory.CreateClient(ClientName);
+            var json       = await client.GetStringAsync(url, cts.Token);
             var root = JsonNode.Parse(json);
             var bands = root?["bands"]?.AsArray();
             if (bands is null || bands.Count == 0) return null;
@@ -113,7 +123,7 @@ public class HfConditionsService(HttpClient http)
 
         try
         {
-            var xml = await http.GetStringAsync(HamQslUrl);
+            var xml = await httpFactory.CreateClient(ClientName).GetStringAsync(HamQslUrl);
             var doc = XDocument.Parse(xml);
             var sd  = doc.Root!.Element("solardata")!;
 

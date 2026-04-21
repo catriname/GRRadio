@@ -9,8 +9,10 @@ namespace GRRadio.Services;
 ///   2. Fetching a Wikipedia summary + thumbnail for the name/location
 ///   3. Computing ham-relevant overlays: distance, day/night, solar sunrise/sunset
 /// </summary>
-public class TravelDestinationService(HttpClient http, PoTaService pota)
+public class TravelDestinationService(IHttpClientFactory httpFactory, PoTaService pota)
 {
+    private HttpClient Http => httpFactory.CreateClient("travel");
+
     private readonly Dictionary<string, DestinationInfo?> _cache = new(StringComparer.OrdinalIgnoreCase);
 
     public async Task<List<DestinationInfo>> ResolveAllAsync(
@@ -126,7 +128,7 @@ public class TravelDestinationService(HttpClient http, PoTaService pota)
         {
             var encoded = Uri.EscapeDataString(term.Replace(' ', '_'));
             var url  = $"https://en.wikipedia.org/api/rest_v1/page/summary/{encoded}";
-            var json = await http.GetStringAsync(url);
+            var json = await Http.GetStringAsync(url);
             var n    = JsonNode.Parse(json);
 
             if (n?["type"]?.GetValue<string>() == "https://mediawiki.org/wiki/HyperSwitch/errors/not_found")

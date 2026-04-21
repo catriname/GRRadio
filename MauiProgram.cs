@@ -1,4 +1,4 @@
-﻿using GRRadio.Services;
+using GRRadio.Services;
 using Microsoft.Extensions.Logging;
 
 namespace GRRadio;
@@ -17,55 +17,73 @@ public static class MauiProgram
 
 		builder.Services.AddMauiBlazorWebView();
 
-		// GRRadio services
+		// GRRadio services — all singletons so in-memory caches survive tab navigation
 		builder.Services.AddSingleton<SettingsService>();
 		builder.Services.AddSingleton<BluetoothKissService>();
 		builder.Services.AddSingleton<ChatHistoryService>();
 		builder.Services.AddSingleton<PhraseService>();
 		builder.Services.AddSingleton<DailyReportService>();
-		builder.Services.AddHttpClient<NewsService>(client =>
+
+		builder.Services.AddSingleton<NewsService>();
+		builder.Services.AddHttpClient("news", client =>
 		{
 			client.DefaultRequestHeaders.Add("User-Agent", "GRRadio/1.0 (ham radio news aggregator; by amateur radio operator)");
 			client.Timeout = TimeSpan.FromSeconds(15);
 		});
+
 		builder.Services.AddSingleton<ClassifiedService>();
 		builder.Services.AddHttpClient("classified", client =>
 		{
 			client.DefaultRequestHeaders.Add("User-Agent", "GRRadio/1.0 (ham radio classifieds)");
 			client.Timeout = TimeSpan.FromSeconds(20);
 		});
-		builder.Services.AddHttpClient<SolarWeatherService>(client =>
+
+		builder.Services.AddSingleton<SolarWeatherService>();
+		builder.Services.AddHttpClient("solarweather", client =>
 		{
 			client.DefaultRequestHeaders.Add("User-Agent", "GRRadio/1.0 (ham radio propagation app)");
 			client.Timeout = TimeSpan.FromSeconds(15);
 		});
-		builder.Services.AddHttpClient<SatelliteService>(client =>
+
+		builder.Services.AddSingleton<SatelliteService>();
+		builder.Services.AddHttpClient("satellite", client =>
 		{
 			client.DefaultRequestHeaders.Add("User-Agent", "GRRadio/1.0 (ham radio propagation app)");
 			client.Timeout = TimeSpan.FromSeconds(20);
 		});
-		builder.Services.AddHttpClient<HfConditionsService>(client =>
+
+		builder.Services.AddSingleton<HfConditionsService>();
+		builder.Services.AddHttpClient("hfconditions", client =>
 		{
 			client.DefaultRequestHeaders.Add("User-Agent", "GRRadio/1.0 (ham radio propagation app)");
 			client.Timeout = TimeSpan.FromSeconds(15);
 		});
-		builder.Services.AddHttpClient<CallookService>(client =>
+
+		builder.Services.AddSingleton<CallookService>();
+		builder.Services.AddHttpClient("callook", client =>
 		{
 			client.DefaultRequestHeaders.Add("User-Agent", "GRRadio/1.0 (ham radio operator app)");
 			client.Timeout = TimeSpan.FromSeconds(10);
 		});
+
 		builder.Services.AddSingleton<PskReporterService>();
-		builder.Services.AddHttpClient<PoTaService>(client =>
+
+		builder.Services.AddSingleton<PoTaService>();
+		builder.Services.AddHttpClient("pota", client =>
 		{
 			client.DefaultRequestHeaders.Add("User-Agent", "GRRadio/1.0 (ham radio POTA app)");
 			client.Timeout = TimeSpan.FromSeconds(15);
 		});
-		builder.Services.AddHttpClient<TravelDestinationService>(client =>
+
+		builder.Services.AddSingleton<TravelDestinationService>();
+		builder.Services.AddHttpClient("travel", client =>
 		{
 			client.DefaultRequestHeaders.Add("User-Agent", "GRRadio/1.0 (ham radio travel app)");
 			client.Timeout = TimeSpan.FromSeconds(15);
 		});
-		builder.Services.AddHttpClient<QrzLogbookService>(client =>
+
+		builder.Services.AddSingleton<QrzLogbookService>();
+		builder.Services.AddHttpClient("qrzlogbook", client =>
 		{
 			client.DefaultRequestHeaders.Add("User-Agent", "GRRadio/1.0 (ham radio logbook app)");
 			client.Timeout = TimeSpan.FromSeconds(20);

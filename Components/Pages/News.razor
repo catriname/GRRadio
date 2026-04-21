@@ -7,7 +7,7 @@
 
 <div class="page-header">
     <h1>News</h1>
-    <button class="refresh-btn" @onclick="LoadAsync" disabled="@loading">
+    <button class="refresh-btn" @onclick="RefreshAsync" disabled="@loading">
         @if (loading) { <span class="spinner">⟳</span> } else { <span>⟳</span> }
     </button>
 </div>
@@ -221,6 +221,12 @@
     private bool dxShowAll = false;
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task RefreshAsync()
+    {
+        NewsSvc.InvalidateCache();
+        await LoadAsync();
+    }
 
     private async Task LoadAsync()
     {

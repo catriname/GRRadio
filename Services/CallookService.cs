@@ -7,8 +7,10 @@ namespace GRRadio.Services;
 /// Looks up US amateur radio license data from callook.info (free, no auth).
 /// Returns null for non-US or unlisted callsigns.
 /// </summary>
-public class CallookService(HttpClient http)
+public class CallookService(IHttpClientFactory httpFactory)
 {
+    private HttpClient Http => httpFactory.CreateClient("callook");
+
     private readonly Dictionary<string, CallookData?> _cache = new(StringComparer.OrdinalIgnoreCase);
 
     public async Task<CallookData?> LookupAsync(string callsign)
@@ -23,7 +25,7 @@ public class CallookService(HttpClient http)
 
         try
         {
-            var json = await http.GetStringAsync($"https://callook.info/{callsign}/json");
+            var json = await Http.GetStringAsync($"https://callook.info/{callsign}/json");
             var node = JsonNode.Parse(json);
 
             if (node?["status"]?.GetValue<string>() is not "VALID")

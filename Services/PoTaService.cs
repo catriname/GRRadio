@@ -7,8 +7,10 @@ namespace GRRadio.Services;
 /// Queries the POTA (Parks on the Air) public API — free, no auth required.
 /// https://api.pota.app
 /// </summary>
-public class PoTaService(HttpClient http)
+public class PoTaService(IHttpClientFactory httpFactory)
 {
+    private HttpClient Http => httpFactory.CreateClient("pota");
+
     private readonly Dictionary<string, DestinationInfo?> _parkCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, int> _activatorCache = new(StringComparer.OrdinalIgnoreCase);
 
@@ -23,7 +25,7 @@ public class PoTaService(HttpClient http)
 
         try
         {
-            var json = await http.GetStringAsync($"https://api.pota.app/park/{reference}");
+            var json = await Http.GetStringAsync($"https://api.pota.app/park/{reference}");
             var n    = JsonNode.Parse(json);
             if (n is null) { _parkCache[reference] = null; return null; }
 
@@ -62,7 +64,7 @@ public class PoTaService(HttpClient http)
 
         try
         {
-            var json = await http.GetStringAsync($"https://api.pota.app/stats/user/{callsign}");
+            var json = await Http.GetStringAsync($"https://api.pota.app/stats/user/{callsign}");
             var n    = JsonNode.Parse(json);
 
             count = n?["activator"]?["activations"]?.GetValue<int>()

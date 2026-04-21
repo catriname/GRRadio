@@ -4,8 +4,10 @@ using System.Text.Json.Nodes;
 
 namespace GRRadio.Services;
 
-public class SatelliteService(HttpClient http)
+public class SatelliteService(IHttpClientFactory httpFactory)
 {
+    private HttpClient Http => httpFactory.CreateClient("satellite");
+
     private List<TleParsed>? _tleCache;
     private DateTime _tleFetchedAt = DateTime.MinValue;
     private List<SstvSatelliteStatus>? _sstvCache;
@@ -13,6 +15,16 @@ public class SatelliteService(HttpClient http)
 
     private const string AmsatTleUrl   = "https://www.amsat.org/tle/current/dailytle.txt";
     private const string SstvStatusUrl = "https://amsat.org/status/api/v1/sat_info.php";
+
+    // ── Cache ─────────────────────────────────────────────────────────────────
+
+    public void InvalidateCache()
+    {
+        _tleCache      = null;
+        _tleFetchedAt  = DateTime.MinValue;
+        _sstvCache     = null;
+        _sstvFetchedAt = DateTime.MinValue;
+    }
 
     // ── TLE Loading ───────────────────────────────────────────────────────────
 
@@ -30,7 +42,7 @@ public class SatelliteService(HttpClient http)
     {
         try
         {
-            var text = await http.GetStringAsync(AmsatTleUrl);
+            var text = await Http.GetStringAsync(AmsatTleUrl);
             return ParseTleText(text);
         }
         catch
@@ -230,7 +242,7 @@ public class SatelliteService(HttpClient http)
     {
         try
         {
-            var json = await http.GetStringAsync(SstvStatusUrl);
+            var json = await Http.GetStringAsync(SstvStatusUrl);
             var arr = JsonNode.Parse(json)?.AsArray();
             if (arr is null) return [];
 

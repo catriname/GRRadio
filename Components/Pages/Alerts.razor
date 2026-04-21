@@ -186,7 +186,11 @@ else
         }
     }
 
-    private async Task Refresh() => await LoadAsync();
+    private async Task Refresh()
+    {
+        SolarService.InvalidateCache();
+        await LoadAsync();
+    }
 
     private static string KpClass(int kp) => kp switch
     {

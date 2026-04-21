@@ -7,8 +7,10 @@ namespace GRRadio.Services;
 /// Accesses the QRZ Logbook API (requires user-supplied API key).
 /// Endpoint: https://logbook.qrz.com/api  (POST, form-encoded)
 /// </summary>
-public class QrzLogbookService(HttpClient http)
+public class QrzLogbookService(IHttpClientFactory httpFactory)
 {
+    private HttpClient Http => httpFactory.CreateClient("qrzlogbook");
+
     private const string ApiUrl = "https://logbook.qrz.com/api";
 
     private QrzStats? _cache;
@@ -59,7 +61,7 @@ public class QrzLogbookService(HttpClient http)
                 ["KEY"]    = apiKey,
                 ["ACTION"] = "STATUS"
             });
-            var resp = await http.PostAsync(ApiUrl, form);
+            var resp = await Http.PostAsync(ApiUrl, form);
             var body = await resp.Content.ReadAsStringAsync();
 
             if (body.Contains("RESULT=AUTH", StringComparison.OrdinalIgnoreCase))
@@ -92,7 +94,7 @@ public class QrzLogbookService(HttpClient http)
             ["ACTION"] = "STATUS"
         });
 
-        var resp = await http.PostAsync(ApiUrl, form);
+        var resp = await Http.PostAsync(ApiUrl, form);
         resp.EnsureSuccessStatusCode();
         var body = await resp.Content.ReadAsStringAsync();
 
@@ -111,7 +113,7 @@ public class QrzLogbookService(HttpClient http)
             ["ACTION"] = "FETCH"
         });
 
-        var resp = await http.PostAsync(ApiUrl, form);
+        var resp = await Http.PostAsync(ApiUrl, form);
         resp.EnsureSuccessStatusCode();
         var body = await resp.Content.ReadAsStringAsync();
 

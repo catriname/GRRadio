@@ -6,12 +6,20 @@ using System.Xml.Linq;
 
 namespace GRRadio.Services;
 
-public class NewsService(HttpClient http)
+public class NewsService(IHttpClientFactory httpFactory)
 {
+    private HttpClient Http => httpFactory.CreateClient("news");
+
     private const string DxFeedUrl = "https://www.dx-world.net/rss";
 
     private (List<RedditPost> Posts, DateTime FetchedAt) _redditCache;
     private (List<DxNewsItem> Items, DateTime FetchedAt) _dxCache;
+
+    public void InvalidateCache()
+    {
+        _redditCache = default;
+        _dxCache     = default;
+    }
 
     // Matches "January 15-28, 2026" / "Feb 5 – Mar 10, 2026" / "March 2026" etc.
     private static readonly Regex DateRangeRegex = new(
@@ -25,7 +33,7 @@ public class NewsService(HttpClient http)
     public async Task<List<RedditPost>> GetRedditPostsAsync(List<string> subreddits)
     {
         if (_redditCache.Posts != null && _redditCache.Posts.Count > 0 &&
-            (DateTime.UtcNow - _redditCache.FetchedAt).TotalMinutes < 30)
+            (DateTime.UtcNow - _redditCache.FetchedAt).TotalHours < 1)
             return _redditCache.Posts;
 
         var all = new List<RedditPost>();
@@ -33,7 +41,7 @@ public class NewsService(HttpClient http)
         {
             try
             {
-                var json = await http.GetStringAsync(
+                var json = await Http.GetStringAsync(
                     $"https://www.reddit.com/r/{sub}/hot.json?limit=15&raw_json=1");
                 all.AddRange(ParseRedditJson(json));
             }
@@ -52,12 +60,12 @@ public class NewsService(HttpClient http)
     public async Task<List<DxNewsItem>> GetDxNewsAsync()
     {
         if (_dxCache.Items != null && _dxCache.Items.Count > 0 &&
-            (DateTime.UtcNow - _dxCache.FetchedAt).TotalHours < 1)
+            (DateTime.UtcNow - _dxCache.FetchedAt).TotalHours < 3)
             return _dxCache.Items;
 
         try
         {
-            var bytes = await http.GetByteArrayAsync(DxFeedUrl);
+            var bytes = await Http.GetByteArrayAsync(DxFeedUrl);
             var xml = System.Text.Encoding.UTF8.GetString(bytes);
             var items = TryParseRssXml(xml) ?? ParseRssRegex(xml);
             _dxCache = (items, DateTime.UtcNow);
