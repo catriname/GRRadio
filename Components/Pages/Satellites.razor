@@ -3,6 +3,7 @@
 @using GRRadio.Services
 @inject SatelliteService SatService
 @inject SettingsService Settings
+@inject UIStateService UiState
 
 <div class="page-header">
     <h1>Satellites</h1>
@@ -47,12 +48,12 @@
 </div>
 
 <!-- Upcoming Passes -->
-<div class="collapsible-header" @onclick="() => showPasses = !showPasses">
+<div class="collapsible-header" @onclick='() => UiState.Toggle("satellites.passes")'>
     <h2>Upcoming Passes</h2>
-    <span class="collapse-chevron">@(showPasses ? "▲" : "▼")</span>
+    <span class="collapse-chevron">@(UiState.Get("satellites.passes") ? "▲" : "▼")</span>
 </div>
 
-@if (showPasses)
+@if (UiState.Get("satellites.passes"))
 {
     @if (loading)
     {
@@ -149,7 +150,6 @@
     private List<SstvSatelliteStatus> sstvStatuses = [];
     private bool loading    = true;
     private bool showLow   = false;
-    private bool showPasses = true;
     private int  passLimit  = 10;
     private string errorMessage = "";
 

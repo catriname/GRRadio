@@ -32,8 +32,6 @@ public class ChatHistoryService
 
     public void Add(AprsMessage msg)
     {
-        if (msg.MessageType == AprsMessageType.SystemLog) return;
-
         var list = Load();
         list.Add(msg);
 

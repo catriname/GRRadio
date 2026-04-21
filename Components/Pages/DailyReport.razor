@@ -11,6 +11,7 @@
 @inject PhraseService PhraseSvc
 @inject IJSRuntime JS
 @inject NavigationManager Nav
+@inject UIStateService UiState
 
 <div class="page-header">
     <div class="page-title">
@@ -126,12 +127,12 @@
 <!-- ── Destinations (collapsible) ───────────────────────────── -->
 @if (destinations.Count > 0 || destLoading)
 {
-    <div class="collapsible-header" @onclick="() => showDestinations = !showDestinations">
+    <div class="collapsible-header" @onclick='() => UiState.Toggle("daily.destinations")'>
         <h2>Destinations</h2>
-        <span class="collapse-chevron">@(showDestinations ? "▲" : "▼")</span>
+        <span class="collapse-chevron">@(UiState.Get("daily.destinations") ? "▲" : "▼")</span>
     </div>
 
-    @if (showDestinations)
+    @if (UiState.Get("daily.destinations"))
     {
         @if (destLoading)
         {
@@ -211,12 +212,12 @@
 }
 
 <!-- ── Band Conditions (collapsible) ────────────────────────── -->
-<div class="collapsible-header" @onclick="() => showBands = !showBands">
+<div class="collapsible-header" @onclick='() => UiState.Toggle("daily.bands")'>
     <h2>Band Conditions</h2>
-    <span class="collapse-chevron">@(showBands ? "▲" : "▼")</span>
+    <span class="collapse-chevron">@(UiState.Get("daily.bands") ? "▲" : "▼")</span>
 </div>
 
-@if (showBands)
+@if (UiState.Get("daily.bands"))
 {
     @if (bands.Count > 0)
     {
@@ -254,12 +255,12 @@
     var visiblePasses = passes.Where(p => p.IsActive || p.IsUpcoming)
                              .OrderBy(p => p.IsActive ? DateTime.MinValue : p.AosTime).ToList();
 
-    <div class="collapsible-header" @onclick="() => showPasses = !showPasses">
+    <div class="collapsible-header" @onclick='() => UiState.Toggle("daily.passes")'>
         <h2>Upcoming Passes</h2>
-        <span class="collapse-chevron">@(showPasses ? "▲" : "▼")</span>
+        <span class="collapse-chevron">@(UiState.Get("daily.passes") ? "▲" : "▼")</span>
     </div>
 
-    @if (showPasses)
+    @if (UiState.Get("daily.passes"))
     {
         <div class="report-pass-list">
             @foreach (var p in visiblePasses.Take(passLimit))
@@ -303,9 +304,7 @@
     private bool destLoading = false;
     private string errorMessage = "";
 
-    private bool showBands        = true;
-    private bool showPasses       = true;
-    private bool showDestinations = true;
+
 
     private HashSet<string> flippedCards = [];
     private void ToggleDestFlip(string name)

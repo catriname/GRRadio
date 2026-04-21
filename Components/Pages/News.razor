@@ -4,6 +4,7 @@
 @inject NewsService NewsSvc
 @inject ClassifiedService ClassifiedSvc
 @inject SettingsService SettingsSvc
+@inject UIStateService UiState
 
 <div class="page-header">
     <h1>News</h1>
@@ -13,12 +14,12 @@
 </div>
 
 <!-- ── Reddit ────────────────────────────────────────────────── -->
-<div class="collapsible-header" @onclick="() => showReddit = !showReddit">
+<div class="collapsible-header" @onclick='() => UiState.Toggle("news.reddit")'>
     <h2>Ham Radio Community</h2>
-    <span class="collapse-chevron">@(showReddit ? "▲" : "▼")</span>
+    <span class="collapse-chevron">@(UiState.Get("news.reddit") ? "▲" : "▼")</span>
 </div>
 
-@if (showReddit)
+@if (UiState.Get("news.reddit"))
 {
     @if (loadingReddit)
     {
@@ -66,12 +67,12 @@
 }
 
 <!-- ── DXpeditions ───────────────────────────────────────────── -->
-<div class="collapsible-header" @onclick="() => showDx = !showDx">
+<div class="collapsible-header" @onclick='() => UiState.Toggle("news.dx")'>
     <h2>DXpeditions</h2>
-    <span class="collapse-chevron">@(showDx ? "▲" : "▼")</span>
+    <span class="collapse-chevron">@(UiState.Get("news.dx") ? "▲" : "▼")</span>
 </div>
 
-@if (showDx)
+@if (UiState.Get("news.dx"))
 {
     @if (loadingDx)
     {
@@ -147,12 +148,12 @@
 }
 
 <!-- ── Ham Classifieds ────────────────────────────────────── -->
-<div class="collapsible-header" @onclick="() => showClassifieds = !showClassifieds">
+<div class="collapsible-header" @onclick='() => UiState.Toggle("news.classifieds")'>
     <h2>Ham Classifieds</h2>
-    <span class="collapse-chevron">@(showClassifieds ? "▲" : "▼")</span>
+    <span class="collapse-chevron">@(UiState.Get("news.classifieds") ? "▲" : "▼")</span>
 </div>
 
-@if (showClassifieds)
+@if (UiState.Get("news.classifieds"))
 {
     @if (loadingClassifieds)
     {
@@ -213,9 +214,6 @@
     private string redditError = "";
     private string dxError = "";
     private string classifiedsError = "";
-    private bool showReddit = true;
-    private bool showDx = true;
-    private bool showClassifieds = true;
     private int redditLimit = 10;
     private int classifiedsLimit = 10;
     private bool dxShowAll = false;

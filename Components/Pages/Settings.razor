@@ -8,6 +8,7 @@
 @inject SatelliteService SatSvc
 @inject NavigationManager Nav
 @inject BluetoothKissService BtSvc
+@inject UIStateService UiState
 
 <div class="page-header">
     <h1>Settings</h1>
@@ -70,7 +71,7 @@
         </div>
 
         <div class="form-group">
-            <div class="collapsible-header" style="margin-bottom:0;" @onclick="() => showSatCatalog = !showSatCatalog">
+            <div class="collapsible-header" style="margin-bottom:0;" @onclick='() => UiState.Toggle("settings.satcatalog", false)'>
                 <label class="form-label" style="pointer-events:none;">
                     Satellites to Track
                     @if (watchlist.Count > 0)
@@ -78,10 +79,10 @@
                         <span class="sat-selected-count">@watchlist.Count selected</span>
                     }
                 </label>
-                <span class="collapse-chevron">@(showSatCatalog ? "▲" : "▼")</span>
+                <span class="collapse-chevron">@(UiState.Get("settings.satcatalog", false) ? "▲" : "▼")</span>
             </div>
 
-            @if (showSatCatalog)
+            @if (UiState.Get("settings.satcatalog", false))
             {
                 <div class="sat-catalog-container">
                     <input class="form-input sat-catalog-search" type="text"
@@ -484,7 +485,6 @@
 
     private List<SatEntry> satCatalog = [];
     private bool satCatalogLoading = false;
-    private bool showSatCatalog = false;
     private string satFilter = "";
 
     private bool IsSatWatched(string name) =>

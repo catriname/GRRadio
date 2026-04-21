@@ -1028,7 +1028,8 @@ a { color: var(--accent); text-decoration: none; cursor: pointer; }
 
 .chat-to { font-weight: 600; color: var(--text-secondary); }
 
-.chat-text { color: var(--text-primary); word-break: break-word; flex: 1; }
+.chat-text { color: #fff; word-break: break-word; flex: 1; }
+.light .chat-text { color: var(--text-primary); }
 
 .chat-sys-marker { color: var(--text-dim); font-weight: 400; }
 

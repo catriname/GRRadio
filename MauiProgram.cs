@@ -19,6 +19,7 @@ public static class MauiProgram
 
 		// GRRadio services — all singletons so in-memory caches survive tab navigation
 		builder.Services.AddSingleton<SettingsService>();
+		builder.Services.AddSingleton<UIStateService>();
 		builder.Services.AddSingleton<BluetoothKissService>();
 		builder.Services.AddSingleton<ChatHistoryService>();
 		builder.Services.AddSingleton<PhraseService>();
