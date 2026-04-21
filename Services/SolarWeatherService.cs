@@ -38,7 +38,7 @@ public class SolarWeatherService(IHttpClientFactory httpFactory)
 
     public async Task<SolarData> GetCurrentAsync()
     {
-        if (_currentData is not null && DateTime.UtcNow - _currentData.FetchedAt < CacheDuration)
+        if (_currentData is not null && DateTime.UtcNow - _currentData.FetchedAt < CurrentTtl)
             return _currentData;
 
         var sfi  = await FetchSolarFluxAsync();
