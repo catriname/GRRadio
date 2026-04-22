@@ -26,6 +26,10 @@ public static class MauiProgram
 		builder.Services.AddSingleton<BluetoothKissService>();
 		builder.Services.AddSingleton<ChatHistoryService>();
 		builder.Services.AddSingleton<PhraseService>();
+		builder.Services.AddHttpClient("phrases", client =>
+		{
+			client.Timeout = TimeSpan.FromSeconds(10);
+		});
 		builder.Services.AddSingleton<DailyReportService>();
 
 		builder.Services.AddSingleton<NewsService>();

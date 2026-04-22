@@ -4,16 +4,19 @@ using GRRadio.Models;
 
 namespace GRRadio.Services;
 
-public class PhraseService
+public class PhraseService(IHttpClientFactory httpClientFactory)
 {
+    private const string RemoteUrl      = "https://k5grr.com/grradio/phrases.json";
     private const string UserPhrasesKey = "grradio_user_phrases";
-    private List<Phrase>? _builtIn;
+    private List<Phrase>? _defaultPhrases;
+    private DateTime _remoteFetchedAt = DateTime.MinValue;
+    private DateTime _remoteFailedAt  = DateTime.MinValue;
 
     public async Task<List<Phrase>> GetAllPhrasesAsync()
     {
-        var builtIn = await GetBuiltInPhrasesAsync();
-        var user = GetUserPhrases();
-        return [.. builtIn, .. user];
+        var defaults = await GetDefaultPhrasesAsync();
+        var user     = GetUserPhrases();
+        return [.. defaults, .. user];
     }
 
     public async Task<Phrase> GetRandomPhraseAsync()
@@ -50,9 +53,9 @@ public class PhraseService
         var phrases = GetUserPhrases();
         phrases.Add(new Phrase
         {
-            Id = Guid.NewGuid().ToString(),
-            Text = text.Trim(),
-            Category = category,
+            Id         = Guid.NewGuid().ToString(),
+            Text       = text.Trim(),
+            Category   = category,
             IsUserAdded = true
         });
         SaveUserPhrases(phrases);
@@ -73,24 +76,57 @@ public class PhraseService
         PropertyNameCaseInsensitive = true
     };
 
-    private async Task<List<Phrase>> GetBuiltInPhrasesAsync()
+    private async Task<List<Phrase>> GetDefaultPhrasesAsync()
     {
-        if (_builtIn is not null) return _builtIn;
+        var now = DateTime.UtcNow;
 
+        if (_defaultPhrases is not null && (now - _remoteFetchedAt).TotalHours < 12)
+            return _defaultPhrases;
+
+        if ((now - _remoteFailedAt).TotalMinutes < 30)
+            return _defaultPhrases ?? await LoadBundledPhrasesAsync();
+
+        var remote = await FetchRemotePhrasesAsync();
+        if (remote is not null)
+        {
+            _defaultPhrases  = remote;
+            _remoteFetchedAt = now;
+            return _defaultPhrases;
+        }
+
+        _remoteFailedAt = now;
+        return _defaultPhrases ?? await LoadBundledPhrasesAsync();
+    }
+
+    private async Task<List<Phrase>?> FetchRemotePhrasesAsync()
+    {
         try
         {
-            await using var stream = await FileSystem.OpenAppPackageFileAsync("phrases.json");
-            using var reader = new StreamReader(stream);
-            var json = await reader.ReadToEndAsync();
-            var doc = JsonSerializer.Deserialize<PhrasesDocument>(json, _jsonOpts);
-            _builtIn = doc?.Phrases ?? [];
+            var client = httpClientFactory.CreateClient("phrases");
+            var json   = await client.GetStringAsync(RemoteUrl);
+            var doc    = JsonSerializer.Deserialize<PhrasesDocument>(json, _jsonOpts);
+            return doc?.Phrases is { Count: > 0 } list ? list : null;
         }
         catch
         {
-            _builtIn = [];
+            return null;
         }
+    }
 
-        return _builtIn;
+    private static async Task<List<Phrase>> LoadBundledPhrasesAsync()
+    {
+        try
+        {
+            await using var stream = await FileSystem.OpenAppPackageFileAsync("phrases.json");
+            using var reader       = new StreamReader(stream);
+            var json               = await reader.ReadToEndAsync();
+            var doc                = JsonSerializer.Deserialize<PhrasesDocument>(json, _jsonOpts);
+            return doc?.Phrases ?? [];
+        }
+        catch
+        {
+            return [];
+        }
     }
 
     private sealed class PhrasesDocument

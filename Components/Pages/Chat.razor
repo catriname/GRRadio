@@ -90,7 +90,7 @@
 <div class="chat-compose-area">
     <div class="chat-input-row">
         <input class="form-input chat-msg-input" type="text"
-               placeholder="@(tncState == TncState.Connected ? "@N0CALL message… (or just type to CQ)" : "Connect TNC to chat")"
+               placeholder="@(tncState == TncState.Connected ? "@N0CALL message…" : "Connect TNC to chat")"
                @bind="messageText"
                @bind:event="oninput"
                @onkeyup="OnKeyUp"

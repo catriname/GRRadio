@@ -52,7 +52,7 @@
 
         <div class="form-group toggle-group">
             <label class="form-label">Satellites Enabled</label>
-            <input type="checkbox" class="form-toggle" @bind="satellitesEnabled" />
+            <input type="checkbox" class="form-toggle" checked="@satellitesEnabled" @onchange="OnSatellitesEnabledChanged" />
         </div>
         <span class="form-hint">Shows upcoming passes on the Daily tab.</span>
 
@@ -352,7 +352,6 @@
     <!-- Save -->
     <div class="settings-actions">
         <button class="btn-primary" @onclick="Save">Save Settings</button>
-        <button class="btn-ghost" @onclick="Cancel">Cancel</button>
     </div>
 
     <!-- About -->
@@ -626,6 +625,13 @@
         locationMessage = "Detecting location…";
         try
         {
+            var status = await Permissions.RequestAsync<Permissions.LocationWhenInUse>();
+            if (status != PermissionStatus.Granted)
+            {
+                locationMessage = "Location permission denied. Enable it in Settings.";
+                return;
+            }
+
             var location = await Geolocation.Default.GetLocationAsync(new GeolocationRequest
             {
                 DesiredAccuracy = GeolocationAccuracy.Medium,
@@ -646,6 +652,15 @@
         {
             locationMessage = $"Location error: {ex.Message}";
         }
+    }
+
+    private static readonly string[] DefaultSatellites = ["ISS (ZARYA)", "SO-50", "AO-91", "AO-92", "RS-44"];
+
+    private void OnSatellitesEnabledChanged(ChangeEventArgs e)
+    {
+        satellitesEnabled = (bool)(e.Value ?? false);
+        if (satellitesEnabled && watchlist.Count == 0)
+            watchlist.AddRange(DefaultSatellites);
     }
 
     private void AddSat()
@@ -725,5 +740,4 @@
         btDeviceAddress = "";
     }
 
-    private void Cancel() => Nav.NavigateTo("/");
 }
