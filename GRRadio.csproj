@@ -23,7 +23,7 @@
         <ApplicationTitle>GRRadio</ApplicationTitle>
 
         <!-- App Identifier -->
-        <ApplicationId>me.catrina.grradio</ApplicationId>
+        <ApplicationId>com.k5grr.grradio</ApplicationId>
 
         <!-- Versions -->
         <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
