@@ -1,5 +1,6 @@
 using GRRadio.Services;
 using Microsoft.Extensions.Logging;
+using Plugin.LocalNotification;
 
 namespace GRRadio;
 
@@ -10,6 +11,7 @@ public static class MauiProgram
 		var builder = MauiApp.CreateBuilder();
 		builder
 			.UseMauiApp<App>()
+			.UseLocalNotification()
 			.ConfigureFonts(fonts =>
 			{
 				fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
@@ -20,6 +22,7 @@ public static class MauiProgram
 		// GRRadio services — all singletons so in-memory caches survive tab navigation
 		builder.Services.AddSingleton<SettingsService>();
 		builder.Services.AddSingleton<UIStateService>();
+		builder.Services.AddSingleton<SatPassAlertService>();
 		builder.Services.AddSingleton<BluetoothKissService>();
 		builder.Services.AddSingleton<ChatHistoryService>();
 		builder.Services.AddSingleton<PhraseService>();

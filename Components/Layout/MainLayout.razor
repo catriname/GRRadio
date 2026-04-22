@@ -2,6 +2,8 @@
 @implements IDisposable
 @using GRRadio.Services
 @inject SettingsService SettingsSvc
+@inject NavigationManager Nav
+@inject IJSRuntime JS
 
 <div class="app-shell @(SettingsSvc.Load().DarkMode ? "" : "light")">
     <main class="app-content">
@@ -66,9 +68,17 @@
     protected override void OnInitialized()
     {
         SettingsSvc.OnChanged += OnSettingsChanged;
+        Nav.LocationChanged  += OnLocationChanged;
     }
 
     private void OnSettingsChanged() => InvokeAsync(StateHasChanged);
 
-    public void Dispose() => SettingsSvc.OnChanged -= OnSettingsChanged;
+    private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
+        => InvokeAsync(() => JS.InvokeVoidAsync("eval", "document.querySelector('.app-content')?.scrollTop=0"));
+
+    public void Dispose()
+    {
+        SettingsSvc.OnChanged -= OnSettingsChanged;
+        Nav.LocationChanged  -= OnLocationChanged;
+    }
 }

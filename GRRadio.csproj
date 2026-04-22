@@ -61,6 +61,7 @@
         <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Maui" Version="$(MauiVersion)" />
         <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.0" />
         <PackageReference Include="InTheHand.Net.Bluetooth" Version="4.2.4" />
+        <PackageReference Include="Plugin.LocalNotification" Version="11.1.4" />
     </ItemGroup>
 
 </Project>

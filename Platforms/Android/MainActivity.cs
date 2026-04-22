@@ -2,6 +2,8 @@
 using Android.Content.PM;
 using Android.OS;
 using AndroidX.Core.View;
+using Plugin.LocalNotification;
+using Plugin.LocalNotification.AndroidOption;
 
 namespace GRRadio;
 
@@ -11,7 +13,18 @@ public class MainActivity : MauiAppCompatActivity
     protected override void OnCreate(Bundle? savedInstanceState)
     {
         base.OnCreate(savedInstanceState);
-        // Allow WebView to receive env(safe-area-inset-*) for status/nav bar padding
         WindowCompat.SetDecorFitsSystemWindows(Window!, false);
+
+        LocalNotificationCenter.CreateNotificationChannels(new List<NotificationChannelRequest>
+        {
+            new()
+            {
+                Id          = "sat_alerts",
+                Name        = "Satellite Pass Alerts",
+                Description = "Alerts before satellite passes begin",
+                Sound       = "satellite_alert",
+                Importance  = AndroidImportance.High
+            }
+        });
     }
 }

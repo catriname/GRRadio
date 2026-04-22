@@ -1,4 +1,4 @@
-@page "/"
+﻿@page "/"
 @using GRRadio.Models
 @using GRRadio.Services
 @implements IDisposable
@@ -12,6 +12,7 @@
 @inject IJSRuntime JS
 @inject NavigationManager Nav
 @inject UIStateService UiState
+@inject SatPassAlertService AlertSvc
 
 <div class="page-header">
     <div class="page-title">
@@ -257,7 +258,10 @@
 
     <div class="collapsible-header" @onclick='() => UiState.Toggle("daily.passes")'>
         <h2>Upcoming Passes</h2>
-        <span class="collapse-chevron">@(UiState.Get("daily.passes") ? "▲" : "▼")</span>
+        <div class="section-header-actions">
+            <a href="/satellites" class="view-all-link" @onclick:stopPropagation="true">View all</a>
+            <span class="collapse-chevron">@(UiState.Get("daily.passes") ? "▲" : "▼")</span>
+        </div>
     </div>
 
     @if (UiState.Get("daily.passes"))
@@ -271,6 +275,15 @@
                         @if (p.IsActive)
                         {
                             <span class="active-badge">● LIVE</span>
+                        }
+                        @if (p.IsUpcoming)
+                        {
+                            var alertState = AlertSvc.GetState(p);
+                            <button class="pass-bell @BellCss(alertState)"
+                                    title="@BellTitle(alertState)"
+                                    @onclick="async () => { await AlertSvc.CycleAsync(p, passes); StateHasChanged(); }">
+                                @BellSvg(alertState)
+                            </button>
                         }
                     </div>
                     <div class="report-pass-desc">@p.AosTimeLocal → @p.LosTimeLocal · @p.AosDirection to @p.LosDirection</div>
@@ -537,5 +550,32 @@
                  + Math.Cos(lat1 * Math.PI / 180) * Math.Cos(lat2 * Math.PI / 180)
                  * Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
         return R * 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+    }
+
+    private static string BellCss(SatAlertState state) => state switch
+    {
+        SatAlertState.SinglePass => "bell-single",
+        SatAlertState.AllPasses  => "bell-all",
+        _                        => "bell-none"
+    };
+
+    private static string BellTitle(SatAlertState state) => state switch
+    {
+        SatAlertState.SinglePass => "Alerting this pass — tap for all passes",
+        SatAlertState.AllPasses  => "Alerting all passes — tap to cancel",
+        _                        => "Tap to alert this pass"
+    };
+
+    private static MarkupString BellSvg(SatAlertState state)
+    {
+        var fill = state == SatAlertState.None ? "none" : "currentColor";
+        return new MarkupString($"""
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
+                 fill="{fill}" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+            </svg>
+            """);
     }
 }

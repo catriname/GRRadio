@@ -12,6 +12,9 @@ public class SatelliteService(IHttpClientFactory httpFactory)
     private DateTime _tleFetchedAt = DateTime.MinValue;
     private List<SstvSatelliteStatus>? _sstvCache;
     private DateTime _sstvFetchedAt = DateTime.MinValue;
+    private List<SatellitePass>? _passCache;
+    private DateTime _passFetchedAt = DateTime.MinValue;
+    private string _passCacheKey = string.Empty;
 
     private const string AmsatTleUrl   = "https://www.amsat.org/tle/current/dailytle.txt";
     private const string SstvStatusUrl = "https://amsat.org/status/api/v1/sat_info.php";
@@ -24,6 +27,9 @@ public class SatelliteService(IHttpClientFactory httpFactory)
         _tleFetchedAt  = DateTime.MinValue;
         _sstvCache     = null;
         _sstvFetchedAt = DateTime.MinValue;
+        _passCache     = null;
+        _passFetchedAt = DateTime.MinValue;
+        _passCacheKey  = string.Empty;
     }
 
     // ── TLE Loading ───────────────────────────────────────────────────────────
@@ -86,8 +92,14 @@ public class SatelliteService(IHttpClientFactory httpFactory)
         List<string> watchlist,
         double lat, double lon, double altKm,
         int minElevDeg,
-        int hoursAhead = 72)
+        int hoursAhead = 72,
+        bool forceRefresh = false)
     {
+        var cacheKey = $"{string.Join(",", watchlist)}|{lat:F4}|{lon:F4}|{minElevDeg}|{hoursAhead}";
+        if (!forceRefresh && _passCache is not null && _passCacheKey == cacheKey
+            && (DateTime.UtcNow - _passFetchedAt).TotalHours < 1)
+            return _passCache;
+
         var tles = await GetTlesAsync();
         var sstvStatus = await GetSstvStatusAsync();
         var passes = new List<SatellitePass>();
@@ -121,7 +133,10 @@ public class SatelliteService(IHttpClientFactory httpFactory)
             passes.AddRange(satPasses);
         }
 
-        return [.. passes.OrderBy(p => p.AosTime)];
+        _passCache     = [.. passes.OrderBy(p => p.AosTime)];
+        _passFetchedAt = DateTime.UtcNow;
+        _passCacheKey  = cacheKey;
+        return _passCache;
     }
 
     private static List<SatellitePass> PredictPasses(

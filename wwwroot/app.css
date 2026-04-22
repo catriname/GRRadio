@@ -1,4 +1,4 @@
-/* ═══════════════════════════════════════════════════════════════
+﻿/* ═══════════════════════════════════════════════════════════════
    GRRadio — Mobile-first ham radio propagation app
    Dark amber theme inspired by K5GRR
    ═══════════════════════════════════════════════════════════════ */
@@ -402,6 +402,22 @@ a { color: var(--accent); text-decoration: none; cursor: pointer; }
     margin-bottom: 8px;
     flex-wrap: wrap;
 }
+
+.pass-bell {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 2px;
+    display: flex;
+    align-items: center;
+    margin-left: auto;
+    opacity: 0.5;
+    transition: opacity 0.15s, color 0.15s;
+}
+.pass-bell:hover      { opacity: 1; }
+.pass-bell.bell-none  { color: var(--text-secondary); }
+.pass-bell.bell-single { color: var(--accent); opacity: 1; }
+.pass-bell.bell-all   { color: var(--excellent); opacity: 1; }
 
 .pass-sat-name { font-size: 15px; font-weight: 700; flex: 1; }
 
@@ -1234,10 +1250,12 @@ a { color: var(--accent); text-decoration: none; cursor: pointer; }
 }
 
 .report-pass-sat {
+    display: flex;
+    align-items: center;
+    gap: 6px;
     font-weight: 700;
     color: var(--accent);
     font-size: 15px;
-    padding-right: 7px;
 }
 
 .report-pass-desc {
@@ -1306,7 +1324,11 @@ a { color: var(--accent); text-decoration: none; cursor: pointer; }
     letter-spacing: 0.5px;
 }
 
-.back-btn { padding: 4px 0; font-size: 14px; }
+.back-btn { padding: 4px 6px; font-size: 14px; color: var(--accent); background: none; border: none; cursor: pointer; }
+
+.section-header-actions { display: flex; align-items: center; gap: 10px; }
+.view-all-link { font-size: 12px; color: var(--accent); text-decoration: none; opacity: 0.8; }
+.view-all-link:hover { opacity: 1; text-decoration: underline; }
 
 /* ── Collapsible Sections ─────────────────────────────────────── */
 .collapsible-header {

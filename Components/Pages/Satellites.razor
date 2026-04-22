@@ -1,15 +1,17 @@
-@page "/satellites"
+﻿@page "/satellites"
 @using GRRadio.Models
 @using GRRadio.Services
 @inject SatelliteService SatService
 @inject SettingsService Settings
 @inject UIStateService UiState
+@inject SatPassAlertService AlertSvc
+@inject NavigationManager Nav
 
 <div class="page-header">
+    <button class="back-btn" @onclick='() => Nav.NavigateTo("/")'>&lsaquo; Back</button>
     <h1>Satellites</h1>
     <button class="refresh-btn" @onclick="Refresh" disabled="@loading">⟳</button>
 </div>
-
 @if (!settings!.IsConfigured)
 {
     <div class="alert-card alert-warn">
@@ -94,6 +96,16 @@
                         <span class="active-badge">● LIVE</span>
                     }
                     <span class="pass-quality @pass.PassQualityCss">@pass.PassQuality</span>
+                    @if (pass.IsUpcoming)
+                    {
+                        var alertState = AlertSvc.GetState(pass);
+                        <button class="pass-bell @BellCss(alertState)"
+                                title="@BellTitle(alertState)"
+                                @onclick="async () => { await AlertSvc.CycleAsync(pass, filteredPasses); StateHasChanged(); }"
+                                @onclick:stopPropagation>
+                            @BellSvg(alertState)
+                        </button>
+                    }
                 </div>
 
                 <div class="pass-details">
@@ -159,7 +171,7 @@
         await LoadPassesAsync();
     }
 
-    private async Task LoadPassesAsync()
+    private async Task LoadPassesAsync(bool forceRefresh = false)
     {
         if (settings is null || !settings.IsConfigured) { loading = false; return; }
 
@@ -172,7 +184,7 @@
         {
             var (lat, lon) = SettingsService.MaidenheadToLatLon(settings.GridSquare);
 
-            var passTask  = SatService.GetPassesAsync(settings.SatelliteWatchlist, lat, lon, 0, settings.MinSatElevation);
+            var passTask  = SatService.GetPassesAsync(settings.SatelliteWatchlist, lat, lon, 0, minElevDeg: 1, forceRefresh: forceRefresh);
             var sstvTask  = SatService.GetSstvStatusAsync();
 
             await Task.WhenAll(passTask, sstvTask);
@@ -198,5 +210,36 @@
             : allPasses.Where(p => p.MaxElevation >= settings!.MinSatElevation).ToList();
     }
 
-    private async Task Refresh() => await LoadPassesAsync();
+    private async Task Refresh()
+    {
+        SatService.InvalidateCache();
+        await LoadPassesAsync(forceRefresh: true);
+    }
+
+    private static string BellCss(SatAlertState state) => state switch
+    {
+        SatAlertState.SinglePass => "bell-single",
+        SatAlertState.AllPasses  => "bell-all",
+        _                        => "bell-none"
+    };
+
+    private static string BellTitle(SatAlertState state) => state switch
+    {
+        SatAlertState.SinglePass => "Alerting this pass — tap for all passes",
+        SatAlertState.AllPasses  => "Alerting all passes — tap to cancel",
+        _                        => "Tap to alert this pass"
+    };
+
+    private static MarkupString BellSvg(SatAlertState state)
+    {
+        var fill = state == SatAlertState.None ? "none" : "currentColor";
+        return new MarkupString($"""
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                 fill="{fill}" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+            </svg>
+            """);
+    }
 }

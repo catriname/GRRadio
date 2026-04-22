@@ -70,6 +70,16 @@
         </div>
 
         <div class="form-group">
+            <label class="form-label">Pass Alert</label>
+            <div class="slider-row">
+                <input type="range" min="1" max="15" step="1"
+                       @bind="satPassAlertMinutes" class="form-slider" />
+                <span class="slider-value">@satPassAlertMinutes min before AOS</span>
+            </div>
+            <span class="form-hint">How early to notify you before a tracked pass begins</span>
+        </div>
+
+        <div class="form-group">
             <div class="collapsible-header" style="margin-bottom:0;" @onclick='() => UiState.Toggle("settings.satcatalog", false)'>
                 <label class="form-label" style="pointer-events:none;">
                     Satellites to Track
@@ -471,7 +481,8 @@
     // ── Form state ────────────────────────────────────────────────
     private string callsign = "";
     private string gridSquare = "";
-    private int minElevation = 10;
+    private int minElevation        = 10;
+    private int satPassAlertMinutes = 5;
     private List<string> watchlist = [];
     private List<string> newsSubreddits = [];
     private bool darkMode = true;
@@ -504,7 +515,8 @@
         var s = SettingsSvc.Load();
         callsign           = s.Callsign;
         gridSquare         = s.GridSquare;
-        minElevation       = s.MinSatElevation;
+        minElevation        = s.MinSatElevation;
+        satPassAlertMinutes = s.SatPassAlertMinutes;
         watchlist          = [.. s.SatelliteWatchlist];
         newsSubreddits     = [.. s.NewsSubreddits];
         travelDestinations = [.. s.TravelDestinations];
@@ -578,6 +590,7 @@
             Latitude              = lat,
             Longitude             = lon,
             MinSatElevation       = minElevation,
+            SatPassAlertMinutes   = satPassAlertMinutes,
             SatelliteWatchlist    = watchlist,
             NewsSubreddits        = newsSubreddits,
             TravelDestinations    = travelDestinations,
