@@ -107,8 +107,24 @@ public class BluetoothKissService : IDisposable
         if (State != TncState.Connected || _stream == null) return false;
         try
         {
-            var s     = _settings.Load();
-            var frame = KissProtocol.CreateBeaconFrame(s.FullCallsign, s.Latitude, s.Longitude, s.AprsSymbol, s.AprsComment);
+            var s = _settings.Load();
+
+            var lat = s.Latitude;
+            var lon = s.Longitude;
+            if (lat == 0 && lon == 0 && !string.IsNullOrWhiteSpace(s.GridSquare))
+                (lat, lon) = SettingsService.MaidenheadToLatLon(s.GridSquare);
+
+            var comment = s.AprsComment.Trim();
+            if (string.IsNullOrEmpty(comment))
+            {
+                var parts = new List<string>();
+                if (!string.IsNullOrWhiteSpace(s.FullCallsign)) parts.Add(s.FullCallsign);
+                if (!string.IsNullOrWhiteSpace(s.GridSquare))   parts.Add(s.GridSquare);
+                parts.Add("GRRadio");
+                comment = string.Join(" ", parts);
+            }
+
+            var frame = KissProtocol.CreateBeaconFrame(s.FullCallsign, lat, lon, s.AprsSymbol, comment);
             await _stream.WriteAsync(frame.ToBytes());
             return true;
         }

@@ -271,13 +271,15 @@
 
     private void AddSystem(string text)
     {
-        messages.Add(new AprsMessage
+        var msg = new AprsMessage
         {
             From        = "***",
             Message     = text,
             MessageType = AprsMessageType.SystemLog,
             Timestamp   = DateTime.Now
-        });
+        };
+        messages.Add(msg);
+        HistorySvc.Add(msg);
         shouldScroll = true;
     }
 

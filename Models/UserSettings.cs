@@ -19,7 +19,7 @@ public class UserSettings
     public bool   AprsEnabled            { get; set; } = false;
     public int    AprsSSID               { get; set; } = 9;
     public string AprsSymbol             { get; set; } = "/-";
-    public string AprsComment            { get; set; } = "GRRadio APRS";
+    public string AprsComment            { get; set; } = "";
     public bool   BeaconEnabled          { get; set; } = false;
     public int    BeaconInterval         { get; set; } = 600;
     public string BluetoothDeviceName    { get; set; } = string.Empty;

@@ -302,7 +302,7 @@
         <div class="form-group">
             <label class="form-label">Beacon Comment</label>
             <input class="form-input" type="text"
-                   placeholder="GRRadio APRS"
+                   placeholder="Auto (callsign + grid)"
                    @bind="aprsComment"
                    maxlength="43" />
         </div>
@@ -375,13 +375,13 @@
 
 @if (showAbout)
 {
-    <div class="modal-overlay" @onclick="() => showAbout = false">
-        <div class="modal-sheet" @onclick:stopPropagation>
-            <div class="modal-header">
-                <h2>About GRRadio</h2>
+    <div class="about-overlay" @onclick="() => showAbout = false">
+        <div class="about-modal" @onclick:stopPropagation>
+            <div class="about-modal-header">
+                <span>About GRRadio</span>
                 <button class="modal-close" @onclick="() => showAbout = false">✕</button>
             </div>
-            <div class="modal-body">
+            <div class="about-modal-body">
                 <p class="about-tagline">A mobile ham radio companion built for the field and the shack.</p>
 
                 <h3 class="about-section-title">Data Sources</h3>
@@ -531,14 +531,14 @@
     private string qrzApiKey = "";
     private string locationMessage = "";
     private string saveMessage = "";
-    private bool saveSuccess = false;
-    private bool showAbout = false;
+    private bool saveSuccess  = false;
+    private bool showAbout    = false;
 
     // APRS Chat
     private bool   aprsEnabled     = false;
     private int    aprsSSID        = 9;
     private string aprsSymbol      = "/-";
-    private string aprsComment     = "GRRadio APRS";
+    private string aprsComment     = "";
     private bool   beaconEnabled   = false;
     private int    beaconInterval  = 600;
     private string btDeviceName    = "";
