@@ -4,7 +4,6 @@
 @using System.Text.RegularExpressions
 @using InTheHand.Net.Sockets
 @inject SettingsService SettingsSvc
-@inject QrzLogbookService QrzSvc
 @inject SatelliteService SatSvc
 @inject NavigationManager Nav
 @inject BluetoothKissService BtSvc
@@ -183,47 +182,18 @@
         </div>
     </div>
 
-    <!-- Logbook & Awards -->
-    <div class="settings-section">
-        <h3 class="settings-section-title">Logbook & Awards</h3>
-        <span class="form-hint" style="display:block; margin-bottom: 12px;">
-            Connect your logbook to track recent contacts and accomplishments. Used only for motivational insights on the Daily tab — credentials are stored locally on your device.
-        </span>
-
-        <div class="form-group">
-            <label class="form-label">QRZ Logbook API Key</label>
-            <input class="form-input" type="password"
-                   placeholder="Your QRZ API key"
-                   @bind="qrzApiKey"
-                   maxlength="64" />
-            <span class="form-hint">Found in QRZ.com → Logbook → Settings</span>
-            <div style="display:flex; align-items:center; gap:10px; margin-top:6px;">
-                <button class="btn-ghost" @onclick="TestQrzKey"
-                        disabled="@(qrzTesting || string.IsNullOrWhiteSpace(qrzApiKey))">
-                    @(qrzTesting ? "Testing…" : "Test Connection")
-                </button>
-                @if (!string.IsNullOrEmpty(qrzTestMessage))
-                {
-                    <span class="form-hint @(qrzTestValid ? "hint-success" : "hint-error")">@qrzTestMessage</span>
-                }
-            </div>
-        </div>
-
-    </div>
 
     <!-- App Settings -->
     <div class="settings-section">
         <h3 class="settings-section-title">App</h3>
 
-        <div class="form-group toggle-group">
-            <label class="form-label">Alerts Enabled</label>
-            <input type="checkbox" class="form-toggle" @bind="alertsEnabled" />
-        </div>
 
+        @*
         <div class="form-group toggle-group">
             <label class="form-label">Dark Mode</label>
             <input type="checkbox" class="form-toggle" @bind="darkMode" />
         </div>
+        *@
 
         <div class="form-group toggle-group">
             <label class="form-label">Daily Report</label>
@@ -498,29 +468,12 @@
             watchlist.RemoveAll(w => w.Equals(name, StringComparison.OrdinalIgnoreCase));
     }
 
-    // ── QRZ test ──────────────────────────────────────────────────
-    private bool   qrzTesting     = false;
-    private bool   qrzTestValid   = false;
-    private string qrzTestMessage = "";
-
-    private async Task TestQrzKey()
-    {
-        qrzTesting     = true;
-        qrzTestMessage = "";
-        StateHasChanged();
-        var (valid, msg) = await QrzSvc.ValidateAsync(qrzApiKey.Trim());
-        qrzTestValid   = valid;
-        qrzTestMessage = msg;
-        qrzTesting     = false;
-    }
-
     // ── Form state ────────────────────────────────────────────────
     private string callsign = "";
     private string gridSquare = "";
     private int minElevation = 10;
     private List<string> watchlist = [];
     private List<string> newsSubreddits = [];
-    private bool alertsEnabled = true;
     private bool darkMode = true;
     private bool dailyReportEnabled = false;
     private bool satellitesEnabled = false;
@@ -528,7 +481,6 @@
     private string newSubName = "";
     private string newDestInput = "";
     private List<TravelDestination> travelDestinations = [];
-    private string qrzApiKey = "";
     private string locationMessage = "";
     private string saveMessage = "";
     private bool saveSuccess  = false;
@@ -556,11 +508,9 @@
         watchlist          = [.. s.SatelliteWatchlist];
         newsSubreddits     = [.. s.NewsSubreddits];
         travelDestinations = [.. s.TravelDestinations];
-        alertsEnabled      = s.AlertsEnabled;
         darkMode           = s.DarkMode;
         dailyReportEnabled = s.DailyReportEnabled;
         satellitesEnabled  = s.SatellitesEnabled;
-        qrzApiKey          = s.QrzApiKey;
         aprsEnabled        = s.AprsEnabled;
         aprsSSID           = s.AprsSSID;
         aprsSymbol         = s.AprsSymbol;
@@ -631,11 +581,9 @@
             SatelliteWatchlist    = watchlist,
             NewsSubreddits        = newsSubreddits,
             TravelDestinations    = travelDestinations,
-            AlertsEnabled         = alertsEnabled,
             DarkMode              = darkMode,
             DailyReportEnabled    = dailyReportEnabled,
             SatellitesEnabled     = satellitesEnabled,
-            QrzApiKey             = qrzApiKey.Trim(),
             AprsEnabled           = aprsEnabled,
             AprsSSID              = aprsSSID,
             AprsSymbol            = aprsSymbol.Trim(),
