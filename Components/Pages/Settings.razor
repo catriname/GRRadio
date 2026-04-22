@@ -274,11 +274,18 @@
 
         <div class="form-group">
             <label class="form-label">APRS Symbol</label>
-            <input class="form-input" type="text"
-                   placeholder="/-"
-                   @bind="aprsSymbol"
-                   maxlength="2" />
-            <span class="form-hint">2-char symbol code, e.g. /- (house), /> (car), /[ (person)</span>
+            <div class="symbol-picker">
+                @foreach (var sym in AprsSymbols.PickerSymbols)
+                {
+                    <button type="button"
+                            class="symbol-btn @(aprsSymbol == sym.Code ? "symbol-btn-selected" : "")"
+                            title="@sym.Name (@sym.Code)"
+                            @onclick="() => aprsSymbol = sym.Code">
+                        @sym.Emoji
+                    </button>
+                }
+            </div>
+            <span class="form-hint">@AprsSymbols.GetEmoji(aprsSymbol) @AprsSymbols.GetName(aprsSymbol) (@aprsSymbol)</span>
         </div>
 
         <div class="form-group">

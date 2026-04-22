@@ -1326,6 +1326,18 @@ a { color: var(--accent); text-decoration: none; cursor: pointer; }
 
 .back-btn { padding: 4px 6px; font-size: 14px; color: var(--accent); background: none; border: none; cursor: pointer; }
 
+/* ── APRS Symbol Picker ───────────────────────────────────────── */
+.symbol-picker { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.symbol-btn {
+    width: 40px; height: 40px; font-size: 20px;
+    border-radius: 8px; border: 1.5px solid var(--border-color);
+    background: var(--bg-card); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: border-color 0.15s, background 0.15s;
+}
+.symbol-btn-selected { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 15%, transparent); }
+.symbol-btn:hover { border-color: var(--accent); }
+
 .section-header-actions { display: flex; align-items: center; gap: 10px; }
 .view-all-link { font-size: 12px; color: var(--accent); text-decoration: none; opacity: 0.8; }
 .view-all-link:hover { opacity: 1; text-decoration: underline; }

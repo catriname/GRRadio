@@ -43,6 +43,9 @@ public static class KissProtocol
             if (payload.StartsWith(':'))  return ParseDirectMessage(fromCall, payload);
             if (payload.StartsWith('!') || payload.StartsWith('=')) return ParsePositionBeacon(fromCall, payload);
             if (payload.StartsWith('>')) return ParseStatusMessage(fromCall, payload);
+            if (payload[0] is '\'' or '`' || (byte)payload[0] is 0x1C or 0x1D) return ParseMicE(fromCall, payload);
+            // Extended Mic-E variant (e.g. Kenwood with { prefix) — symbol table at byte 7
+            if (payload.Length >= 8 && (payload[7] == '/' || payload[7] == '\\')) return ParseMicE(fromCall, payload);
 
             return new AprsMessage { From = fromCall, To = toCall, Message = payload, MessageType = AprsMessageType.SystemLog, Timestamp = DateTime.Now };
         }
@@ -154,8 +157,47 @@ public static class KissProtocol
         catch { return null; }
     }
 
-    private static AprsMessage ParsePositionBeacon(string from, string payload) =>
-        new() { From = from, To = "BEACON", Message = $"Position: {payload}", MessageType = AprsMessageType.Beacon, Timestamp = DateTime.Now };
+    private static AprsMessage ParsePositionBeacon(string from, string payload)
+    {
+        // !DDMM.MMH/DDDMM.MMHsc[comment]  — sym table at [9], sym code at [19]
+        try
+        {
+            if (payload.Length >= 20)
+            {
+                var table   = payload[9];
+                var code    = payload[19];
+                var comment = payload.Length > 20 ? payload[20..].Trim() : "";
+                var emoji   = AprsSymbols.GetEmoji(table, code);
+                return new AprsMessage { From = from, To = "BEACON", Symbol = $"{table}{code}",
+                    Message = string.IsNullOrEmpty(comment) ? emoji : $"{emoji} {comment}",
+                    MessageType = AprsMessageType.Beacon, Timestamp = DateTime.Now };
+            }
+        }
+        catch { }
+        return new() { From = from, To = "BEACON", Message = payload, MessageType = AprsMessageType.Beacon, Timestamp = DateTime.Now };
+    }
+
+    private static AprsMessage ParseMicE(string from, string payload)
+    {
+        // Mic-E: bytes 6=sym code, 7=sym table, 8+=comment (may have extension prefix chars)
+        try
+        {
+            if (payload.Length >= 8)
+            {
+                var code    = payload[6];
+                var table   = payload[7];
+                var emoji   = AprsSymbols.GetEmoji(table, code);
+                var comment = payload.Length > 8 ? payload[8..] : "";
+                // Strip Kenwood/Yaesu Mic-E extension marker chars and leading junk
+                comment = comment.TrimStart('`', '\'', '"', '!').Trim('}').Trim();
+                return new AprsMessage { From = from, To = "POSITION", Symbol = $"{table}{code}",
+                    Message = string.IsNullOrEmpty(comment) ? emoji : $"{emoji} {comment}",
+                    MessageType = AprsMessageType.Beacon, Timestamp = DateTime.Now };
+            }
+        }
+        catch { }
+        return new() { From = from, To = "BEACON", Message = payload, MessageType = AprsMessageType.Beacon, Timestamp = DateTime.Now };
+    }
 
     private static AprsMessage ParseStatusMessage(string from, string payload) =>
         new() { From = from, To = "STATUS", Message = payload[1..], MessageType = AprsMessageType.CallsignInfo, Timestamp = DateTime.Now };
