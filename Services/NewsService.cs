@@ -206,9 +206,6 @@ public class NewsService(IHttpClientFactory httpFactory)
     {
         if (string.IsNullOrWhiteSpace(html)) return "";
         var text = Regex.Replace(html, "<[^>]*>", "");
-        return text
-            .Replace("&amp;", "&").Replace("&lt;", "<").Replace("&gt;", ">")
-            .Replace("&quot;", "\"").Replace("&#39;", "'").Replace("&nbsp;", " ")
-            .Trim();
+        return System.Net.WebUtility.HtmlDecode(text).Trim();
     }
 }
