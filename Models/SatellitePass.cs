@@ -58,7 +58,7 @@ public class SatellitePass
     public string LosDirection => CompassDirection(LosAzimuth);
 
     public string PassId => $"{SatelliteName}_{AosTime:yyyyMMddHHmm}";
-    public int NotificationId => Math.Abs(PassId.GetHashCode()) % 100_000;
+    public int NotificationId => Math.Abs(PassId.Aggregate(0, (h, c) => h * 31 + c)) % 100_000;
 }
 
 public class SstvSatelliteStatus

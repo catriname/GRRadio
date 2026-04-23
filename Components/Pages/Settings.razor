@@ -476,14 +476,20 @@
     private string satFilter = "";
 
     private bool IsSatWatched(string name) =>
-        watchlist.Any(w => w.Equals(name, StringComparison.OrdinalIgnoreCase));
+        watchlist.Any(w =>
+            w.Equals(name, StringComparison.OrdinalIgnoreCase) ||
+            name.Contains(w, StringComparison.OrdinalIgnoreCase) ||
+            w.Contains(name, StringComparison.OrdinalIgnoreCase));
 
     private void ToggleSat(string name, bool add)
     {
         if (add && !IsSatWatched(name))
             watchlist.Add(name);
         else if (!add)
-            watchlist.RemoveAll(w => w.Equals(name, StringComparison.OrdinalIgnoreCase));
+            watchlist.RemoveAll(w =>
+                w.Equals(name, StringComparison.OrdinalIgnoreCase) ||
+                name.Contains(w, StringComparison.OrdinalIgnoreCase) ||
+                w.Contains(name, StringComparison.OrdinalIgnoreCase));
     }
 
     // ── Form state ────────────────────────────────────────────────
