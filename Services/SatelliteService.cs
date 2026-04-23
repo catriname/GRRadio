@@ -45,22 +45,22 @@ public class SatelliteService(IHttpClientFactory httpFactory)
 
     private async Task<List<TleParsed>> GetAmsatTlesAsync()
     {
-        if (_amsatCache is not null && (DateTime.UtcNow - _amsatFetchedAt).TotalHours < 24)
+        if (_amsatCache is not null && _amsatCache.Count > 0 && (DateTime.UtcNow - _amsatFetchedAt).TotalHours < 24)
             return _amsatCache;
 
-        _amsatCache = await FetchTlesFromAsync(AmsatTleUrl, _amsatCache);
-        _amsatFetchedAt = DateTime.UtcNow;
-        return _amsatCache;
+        var fresh = await FetchTlesFromAsync(AmsatTleUrl, _amsatCache);
+        if (fresh.Count > 0) { _amsatCache = fresh; _amsatFetchedAt = DateTime.UtcNow; }
+        return _amsatCache ?? [];
     }
 
     private async Task<List<TleParsed>> GetTlesAsync()
     {
-        if (_celestrakCache is not null && (DateTime.UtcNow - _celestrakFetchedAt).TotalHours < 4)
+        if (_celestrakCache is not null && _celestrakCache.Count > 0 && (DateTime.UtcNow - _celestrakFetchedAt).TotalHours < 4)
             return _celestrakCache;
 
-        _celestrakCache = await FetchTlesFromAsync(CelestrakTleUrl, _celestrakCache);
-        _celestrakFetchedAt = DateTime.UtcNow;
-        return _celestrakCache;
+        var fresh = await FetchTlesFromAsync(CelestrakTleUrl, _celestrakCache);
+        if (fresh.Count > 0) { _celestrakCache = fresh; _celestrakFetchedAt = DateTime.UtcNow; }
+        return _celestrakCache ?? [];
     }
 
     private async Task<List<TleParsed>> FetchTlesFromAsync(string url, List<TleParsed>? fallback)

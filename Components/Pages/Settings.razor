@@ -475,7 +475,6 @@
         [25544] = ("FM Voice",    "145.800 ↓ · APRS 145.825"),   // ISS (ZARYA)
         [27607] = ("FM Voice",    "145.850 ↓ · 67.0 Hz PL up"),  // SO-50
         [43017] = ("FM Voice",    "145.960 ↓ · FOX-1B"),         // AO-91
-        [43137] = ("FM Voice",    "145.880 ↓ · FOX-1D"),         // AO-92
         [43678] = ("FM Voice",    "145.900 ↓ · Diwata-2"),       // PO-101
         [50986] = ("FM Voice",    "435.600 ↓"),                   // TEVEL-1
         [50987] = ("FM Voice",    "435.600 ↓"),                   // TEVEL-2
@@ -687,8 +686,8 @@
         }
     }
 
-    // ISS, SO-50, AO-91, AO-92, RS-44
-    private static readonly int[] DefaultNoradIds = [25544, 27607, 43017, 43137, 44909];
+    // ISS, SO-50, AO-91, IO-86, RS-44
+    private static readonly int[] DefaultNoradIds = [25544, 27607, 43017, 40931, 44909];
 
     private void OnSatellitesEnabledChanged(ChangeEventArgs e)
     {
