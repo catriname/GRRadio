@@ -112,23 +112,48 @@
                                 s.Freq.Contains(satFilter, StringComparison.OrdinalIgnoreCase)).ToList();
 
                         <div class="sat-catalog-scroll">
-                            @foreach (var group in filtered.GroupBy(s => s.Mode))
+                            @foreach (var group in filtered.GroupBy(s => s.Mode).OrderBy(g => g.Key == "Other" ? 1 : 0))
                             {
-                                <div class="sat-group-label">@group.Key</div>
-                                @foreach (var sat in group)
+                                @if (group.Key == "Other" && string.IsNullOrWhiteSpace(satFilter))
                                 {
-                                    <label class="sat-catalog-item">
-                                        <input type="checkbox"
-                                               checked="@IsSatWatched(sat.NoradId)"
-                                               @onchange="e => ToggleSat(sat.NoradId, (bool)e.Value!)" />
-                                        <div class="sat-catalog-info">
-                                            <span class="sat-catalog-name">@sat.Name</span>
-                                            @if (!string.IsNullOrEmpty(sat.Freq))
-                                            {
-                                                <span class="sat-catalog-notes">@sat.Freq</span>
-                                            }
-                                        </div>
-                                    </label>
+                                    <div class="sat-group-label" style="cursor:pointer;"
+                                         @onclick="() => showOtherSats = !showOtherSats">
+                                        Other (@group.Count())
+                                        <span style="float:right">@(showOtherSats ? "▲" : "▼")</span>
+                                    </div>
+                                    @if (showOtherSats)
+                                    {
+                                        @foreach (var sat in group)
+                                        {
+                                            <label class="sat-catalog-item">
+                                                <input type="checkbox"
+                                                       checked="@IsSatWatched(sat.NoradId)"
+                                                       @onchange="e => ToggleSat(sat.NoradId, (bool)e.Value!)" />
+                                                <div class="sat-catalog-info">
+                                                    <span class="sat-catalog-name">@sat.Name</span>
+                                                </div>
+                                            </label>
+                                        }
+                                    }
+                                }
+                                else
+                                {
+                                    <div class="sat-group-label">@group.Key</div>
+                                    @foreach (var sat in group)
+                                    {
+                                        <label class="sat-catalog-item">
+                                            <input type="checkbox"
+                                                   checked="@IsSatWatched(sat.NoradId)"
+                                                   @onchange="e => ToggleSat(sat.NoradId, (bool)e.Value!)" />
+                                            <div class="sat-catalog-info">
+                                                <span class="sat-catalog-name">@sat.Name</span>
+                                                @if (!string.IsNullOrEmpty(sat.Freq))
+                                                {
+                                                    <span class="sat-catalog-notes">@sat.Freq</span>
+                                                }
+                                            </div>
+                                        </label>
+                                    }
                                 }
                             }
                         </div>
@@ -143,7 +168,7 @@
             }
             @if (customIds.Count > 0)
             {
-                <div class="sat-group-label">Custom</div>
+                <div class="sat-group-label">Unlisted</div>
                 @foreach (var id in customIds)
                 {
                     <div class="watchlist-item">
@@ -154,12 +179,16 @@
             }
 
             <div class="watchlist-add" style="margin-top: 8px;">
-                <input class="form-input" type="number"
-                       placeholder="Add by NORAD ID…"
-                       @bind="newSatNoradId"
+                <input class="form-input" type="text"
+                       placeholder="Search by name to add…"
+                       @bind="newSatName"
                        @onkeyup="OnSatKeyUp" />
                 <button class="btn-secondary" @onclick="AddSat">Add</button>
             </div>
+            @if (!string.IsNullOrEmpty(satAddError))
+            {
+                <span class="form-hint" style="color:var(--color-warn)">@satAddError</span>
+            }
         </div>
 
         <button class="btn-ghost" style="margin-top: 4px;" @onclick='() => Nav.NavigateTo("/satellites")'>
@@ -491,7 +520,9 @@
     private bool darkMode = true;
     private bool dailyReportEnabled = false;
     private bool satellitesEnabled = false;
-    private int newSatNoradId = 0;
+    private string newSatName  = "";
+    private string satAddError = "";
+    private bool   showOtherSats = false;
     private string newSubName = "";
     private string newDestInput = "";
     private List<TravelDestination> travelDestinations = [];
@@ -668,11 +699,18 @@
 
     private void AddSat()
     {
-        if (newSatNoradId > 0 && !watchedNoradIds.Contains(newSatNoradId))
-        {
-            watchedNoradIds.Add(newSatNoradId);
-            newSatNoradId = 0;
-        }
+        satAddError = "";
+        var query = newSatName.Trim();
+        if (string.IsNullOrEmpty(query)) return;
+
+        var match = satCatalog.FirstOrDefault(s =>
+            s.Name.Equals(query, StringComparison.OrdinalIgnoreCase) ||
+            s.Name.Contains(query, StringComparison.OrdinalIgnoreCase));
+
+        if (match is null) { satAddError = $"\"{query}\" not found in catalog."; return; }
+
+        watchedNoradIds.Add(match.NoradId);
+        newSatName = "";
     }
 
     private void RemoveSat(int noradId) => watchedNoradIds.Remove(noradId);

@@ -8,52 +8,71 @@ public class SatelliteService(IHttpClientFactory httpFactory)
 {
     private HttpClient Http => httpFactory.CreateClient("satellite");
 
-    private List<TleParsed>? _tleCache;
-    private DateTime _tleFetchedAt = DateTime.MinValue;
+    // AMSAT — catalog names (ham radio designations like SO-50, AO-91)
+    private List<TleParsed>? _amsatCache;
+    private DateTime _amsatFetchedAt = DateTime.MinValue;
+
+    // CelesTrak — orbital elements for pass prediction (updated multiple times/day)
+    private List<TleParsed>? _celestrakCache;
+    private DateTime _celestrakFetchedAt = DateTime.MinValue;
+
     private List<SstvSatelliteStatus>? _sstvCache;
     private DateTime _sstvFetchedAt = DateTime.MinValue;
     private List<SatellitePass>? _passCache;
     private DateTime _passFetchedAt = DateTime.MinValue;
     private string _passCacheKey = string.Empty;
 
+    private const string AmsatTleUrl     = "https://www.amsat.org/tle/dailytle.txt";
     private const string CelestrakTleUrl = "https://celestrak.org/pub/TLE/amateur.txt";
-    private const string SstvStatusUrl = "https://amsat.org/status/api/v1/sat_info.php";
+    private const string SstvStatusUrl   = "https://amsat.org/status/api/v1/sat_info.php";
 
     // ── Cache ─────────────────────────────────────────────────────────────────
 
     public void InvalidateCache()
     {
-        _tleCache      = null;
-        _tleFetchedAt  = DateTime.MinValue;
-        _sstvCache     = null;
-        _sstvFetchedAt = DateTime.MinValue;
-        _passCache     = null;
-        _passFetchedAt = DateTime.MinValue;
-        _passCacheKey  = string.Empty;
+        _amsatCache       = null;
+        _amsatFetchedAt   = DateTime.MinValue;
+        _celestrakCache   = null;
+        _celestrakFetchedAt = DateTime.MinValue;
+        _sstvCache        = null;
+        _sstvFetchedAt    = DateTime.MinValue;
+        _passCache        = null;
+        _passFetchedAt    = DateTime.MinValue;
+        _passCacheKey     = string.Empty;
     }
 
     // ── TLE Loading ───────────────────────────────────────────────────────────
 
-    public async Task<List<TleParsed>> GetTlesAsync()
+    private async Task<List<TleParsed>> GetAmsatTlesAsync()
     {
-        if (_tleCache is not null && (DateTime.UtcNow - _tleFetchedAt).TotalHours < 12)
-            return _tleCache;
+        if (_amsatCache is not null && (DateTime.UtcNow - _amsatFetchedAt).TotalHours < 12)
+            return _amsatCache;
 
-        _tleCache = await FetchTlesAsync();
-        _tleFetchedAt = DateTime.UtcNow;
-        return _tleCache;
+        _amsatCache = await FetchTlesFromAsync(AmsatTleUrl, _amsatCache);
+        _amsatFetchedAt = DateTime.UtcNow;
+        return _amsatCache;
     }
 
-    private async Task<List<TleParsed>> FetchTlesAsync()
+    private async Task<List<TleParsed>> GetTlesAsync()
+    {
+        if (_celestrakCache is not null && (DateTime.UtcNow - _celestrakFetchedAt).TotalHours < 12)
+            return _celestrakCache;
+
+        _celestrakCache = await FetchTlesFromAsync(CelestrakTleUrl, _celestrakCache);
+        _celestrakFetchedAt = DateTime.UtcNow;
+        return _celestrakCache;
+    }
+
+    private async Task<List<TleParsed>> FetchTlesFromAsync(string url, List<TleParsed>? fallback)
     {
         try
         {
-            var text = await Http.GetStringAsync(CelestrakTleUrl);
+            var text = await Http.GetStringAsync(url);
             return ParseTleText(text);
         }
         catch
         {
-            return _tleCache ?? [];
+            return fallback ?? [];
         }
     }
 
@@ -82,7 +101,7 @@ public class SatelliteService(IHttpClientFactory httpFactory)
 
     public async Task<List<(int NoradId, string Name)>> GetSatellitesAsync()
     {
-        var tles = await GetTlesAsync();
+        var tles = await GetAmsatTlesAsync();
         return tles.Select(t => (t.NoradId, t.Name)).OrderBy(t => t.Name).ToList();
     }
 
