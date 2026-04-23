@@ -417,7 +417,7 @@
                     try
                     {
                         passes = await SatService.GetPassesAsync(
-                            settings.SatelliteWatchlist, lat, lon,
+                            settings.WatchedNoradIds, lat, lon,
                             altKm: 0, minElevDeg: settings.MinSatElevation, hoursAhead: 24);
                     }
                     catch
