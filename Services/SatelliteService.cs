@@ -55,7 +55,7 @@ public class SatelliteService(IHttpClientFactory httpFactory)
 
     private async Task<List<TleParsed>> GetTlesAsync()
     {
-        if (_celestrakCache is not null && (DateTime.UtcNow - _celestrakFetchedAt).TotalHours < 12)
+        if (_celestrakCache is not null && (DateTime.UtcNow - _celestrakFetchedAt).TotalHours < 4)
             return _celestrakCache;
 
         _celestrakCache = await FetchTlesFromAsync(CelestrakTleUrl, _celestrakCache);
