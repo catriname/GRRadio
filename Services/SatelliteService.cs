@@ -45,7 +45,7 @@ public class SatelliteService(IHttpClientFactory httpFactory)
 
     private async Task<List<TleParsed>> GetAmsatTlesAsync()
     {
-        if (_amsatCache is not null && (DateTime.UtcNow - _amsatFetchedAt).TotalHours < 12)
+        if (_amsatCache is not null && (DateTime.UtcNow - _amsatFetchedAt).TotalHours < 24)
             return _amsatCache;
 
         _amsatCache = await FetchTlesFromAsync(AmsatTleUrl, _amsatCache);
