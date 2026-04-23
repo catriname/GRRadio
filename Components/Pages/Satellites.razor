@@ -63,6 +63,13 @@
             @for (int i = 0; i < 6; i++) { <div class="pass-card skeleton"></div> }
         </div>
     }
+    else if (settings!.WatchedNoradIds.Count == 0)
+    {
+        <div class="empty-state">
+            No satellites in your watchlist.
+            <br /><small><button class="btn-ghost" @onclick='() => Nav.NavigateTo("/settings")'>Go to Settings</button> to add some.</small>
+        </div>
+    }
     else if (filteredPasses.Count == 0)
     {
         <div class="empty-state">

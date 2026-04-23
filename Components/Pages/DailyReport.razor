@@ -251,7 +251,13 @@
 }
 
 <!-- ── Upcoming Passes (collapsible) ────────────────────────── -->
-@if (settings!.SatellitesEnabled && settings.IsConfigured && passes.Count > 0)
+@if (settings!.SatellitesEnabled && settings.IsConfigured && settings.WatchedNoradIds.Count == 0)
+{
+    <div class="empty-state" style="margin: 8px 0;">
+        No satellites in your watchlist — <a @onclick='() => Nav.NavigateTo("/settings")' style="cursor:pointer;text-decoration:underline;">add some in Settings</a>.
+    </div>
+}
+else @if (settings!.SatellitesEnabled && settings.IsConfigured && passes.Count > 0)
 {
     var visiblePasses = passes.Where(p => p.IsActive || p.IsUpcoming)
                              .OrderBy(p => p.IsActive ? DateTime.MinValue : p.AosTime).ToList();
