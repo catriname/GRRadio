@@ -184,7 +184,7 @@
         {
             var (lat, lon) = SettingsService.MaidenheadToLatLon(settings.GridSquare);
 
-            var passTask  = SatService.GetPassesAsync(settings.SatelliteWatchlist, lat, lon, 0, minElevDeg: 1, forceRefresh: forceRefresh);
+            var passTask  = SatService.GetPassesAsync(settings.WatchedNoradIds, lat, lon, 0, minElevDeg: 1, forceRefresh: forceRefresh);
             var sstvTask  = SatService.GetSstvStatusAsync();
 
             await Task.WhenAll(passTask, sstvTask);

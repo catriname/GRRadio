@@ -237,7 +237,8 @@ public static class Sgp4
 /// <summary>Parsed TLE orbital elements.</summary>
 public class TleParsed
 {
-    public string Name { get; set; } = string.Empty;
+    public string Name    { get; set; } = string.Empty;
+    public int    NoradId { get; set; }
     public DateTime Epoch { get; set; }
     public double N0 { get; set; }    // mean motion (rad/min)
     public double Ecco { get; set; }  // eccentricity
@@ -255,7 +256,11 @@ public class TleParsed
     {
         try
         {
-            var t = new TleParsed { Name = name.Trim() };
+            var t = new TleParsed
+            {
+                Name    = name.Trim(),
+                NoradId = int.Parse(line1[2..7].Trim())
+            };
 
             // Epoch
             double epochYear = double.Parse(line1[18..20]);

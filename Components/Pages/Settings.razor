@@ -83,9 +83,9 @@
             <div class="collapsible-header" style="margin-bottom:0;" @onclick='() => UiState.Toggle("settings.satcatalog", false)'>
                 <label class="form-label" style="pointer-events:none;">
                     Satellites to Track
-                    @if (watchlist.Count > 0)
+                    @if (watchedNoradIds.Count > 0)
                     {
-                        <span class="sat-selected-count">@watchlist.Count selected</span>
+                        <span class="sat-selected-count">@watchedNoradIds.Count selected</span>
                     }
                 </label>
                 <span class="collapse-chevron">@(UiState.Get("settings.satcatalog", false) ? "▲" : "▼")</span>
@@ -119,8 +119,8 @@
                                 {
                                     <label class="sat-catalog-item">
                                         <input type="checkbox"
-                                               checked="@IsSatWatched(sat.Name)"
-                                               @onchange="e => ToggleSat(sat.Name, (bool)e.Value!)" />
+                                               checked="@IsSatWatched(sat.NoradId)"
+                                               @onchange="e => ToggleSat(sat.NoradId, (bool)e.Value!)" />
                                         <div class="sat-catalog-info">
                                             <span class="sat-catalog-name">@sat.Name</span>
                                             @if (!string.IsNullOrEmpty(sat.Freq))
@@ -137,18 +137,18 @@
             }
 
             @{
-                var customSats = watchlist
-                    .Where(w => !satCatalog.Any(s => s.Name.Equals(w, StringComparison.OrdinalIgnoreCase)))
+                var customIds = watchedNoradIds
+                    .Where(id => !satCatalog.Any(s => s.NoradId == id))
                     .ToList();
             }
-            @if (customSats.Count > 0)
+            @if (customIds.Count > 0)
             {
-                <div class="sat-group-label">Custom</div>
-                @foreach (var sat in customSats)
+                <div class="sat-group-label">Unlisted</div>
+                @foreach (var id in customIds)
                 {
                     <div class="watchlist-item">
-                        <span>@sat</span>
-                        <button class="watchlist-remove" @onclick="() => RemoveSat(sat)">✕</button>
+                        <span>NORAD @id</span>
+                        <button class="watchlist-remove" @onclick="() => RemoveSat(id)">✕</button>
                     </div>
                 }
             }
@@ -438,52 +438,46 @@
 
 @code {
     // ── Satellite catalog ─────────────────────────────────────────
-    private record SatEntry(string Name, string Mode, string Freq);
+    private record SatEntry(string Name, string Mode, string Freq, int NoradId);
 
-    // Known frequency/mode info — everything else from TLE shows as "Other"
-    private static readonly Dictionary<string, (string Mode, string Freq)> KnownSats =
-        new(StringComparer.OrdinalIgnoreCase)
+    // Known frequency/mode info keyed by NORAD catalog number
+    private static readonly Dictionary<int, (string Mode, string Freq)> KnownSats = new()
     {
-        ["ISS (ZARYA)"] = ("FM Voice",    "145.800 ↓ · APRS 145.825"),
-        ["ISS"]         = ("FM Voice",    "145.800 ↓ · APRS 145.825"),
-        ["SO-50"]       = ("FM Voice",    "145.850 ↓ · 67.0 Hz PL up"),
-        ["AO-91"]       = ("FM Voice",    "145.960 ↓ · FOX-1B"),
-        ["AO-92"]       = ("FM Voice",    "145.880 ↓ · FOX-1D"),
-        ["PO-101"]      = ("FM Voice",    "145.900 ↓ · Diwata-2"),
-        ["TEVEL-1"]     = ("FM Voice",    "435.600 ↓"),
-        ["TEVEL-2"]     = ("FM Voice",    "435.600 ↓"),
-        ["LILACSAT-2"]  = ("FM Voice",    "437.200 ↓"),
-        ["IO-86"]       = ("FM Voice",    "435.880 ↓"),
-        ["AO-27"]       = ("FM Voice",    "436.795 ↓"),
-        ["HO-113"]      = ("FM Voice",    "436.100 ↓"),
-        ["RS-44"]       = ("Linear / SSB","145.935 ↓ · 435.640 ↑"),
-        ["FO-29"]       = ("Linear / SSB","145.900 ↓ · 435.800 ↑"),
-        ["AO-07"]       = ("Linear / SSB","145.975 ↓ · Mode B"),
-        ["AO-73"]       = ("Linear / SSB","145.950 ↓ · 435.130 ↑"),
-        ["JO-97"]       = ("Linear / SSB","145.855 ↓ · 435.100 ↑"),
-        ["XW-2A"]       = ("Linear / SSB","145.670 ↓"),
-        ["CAS-4A"]      = ("Linear / SSB","435.210 ↓"),
-        ["CAS-4B"]      = ("Linear / SSB","435.280 ↓"),
-        ["LO-74"]       = ("Linear / SSB","436.675 ↓"),
-        ["TO-108"]      = ("Linear / SSB","145.915 ↓ · 435.315 ↑"),
-        ["QO-100"]      = ("Linear / SSB","10489.5 MHz ↓ · 2400 MHz ↑"),
-        ["RS-22"]       = ("CW / Beacon", "435.352 ↓"),
-        ["AO-95"]       = ("CW / Beacon", "145.880 ↓"),
+        [25544] = ("FM Voice",    "145.800 ↓ · APRS 145.825"),   // ISS (ZARYA)
+        [27607] = ("FM Voice",    "145.850 ↓ · 67.0 Hz PL up"),  // SO-50
+        [43017] = ("FM Voice",    "145.960 ↓ · FOX-1B"),         // AO-91
+        [43678] = ("FM Voice",    "145.900 ↓ · Diwata-2"),       // PO-101
+        [50986] = ("FM Voice",    "435.600 ↓"),                   // TEVEL-1
+        [50987] = ("FM Voice",    "435.600 ↓"),                   // TEVEL-2
+        [40908] = ("FM Voice",    "437.200 ↓"),                   // LILACSAT-2
+        [40931] = ("FM Voice",    "435.880 ↓"),                   // IO-86
+        [22825] = ("FM Voice",    "436.795 ↓"),                   // AO-27
+        [49016] = ("FM Voice",    "436.100 ↓"),                   // HO-113 (XW-3)
+        [44909] = ("Linear / SSB","145.935 ↓ · 435.640 ↑"),      // RS-44
+        [24278] = ("Linear / SSB","145.900 ↓ · 435.800 ↑"),      // FO-29
+        [7530]  = ("Linear / SSB","145.975 ↓ · Mode B"),          // AO-07
+        [39444] = ("Linear / SSB","145.950 ↓ · 435.130 ↑"),      // AO-73
+        [43803] = ("Linear / SSB","145.855 ↓ · 435.100 ↑"),      // JO-97
+        [40903] = ("Linear / SSB","145.670 ↓"),                   // XW-2A
+        [42761] = ("Linear / SSB","435.210 ↓"),                   // CAS-4A
+        [42759] = ("Linear / SSB","435.280 ↓"),                   // CAS-4B
+        [42788] = ("Linear / SSB","436.675 ↓"),                   // LO-74
+        [46852] = ("Linear / SSB","145.915 ↓ · 435.315 ↑"),      // TO-108 (CAS-6)
+        [43700] = ("Linear / SSB","10489.5 MHz ↓ · 2400 MHz ↑"), // QO-100
+        [28650] = ("CW / Beacon", "435.352 ↓"),                   // RS-22
+        [43743] = ("CW / Beacon", "145.880 ↓"),                   // AO-95
     };
 
     private List<SatEntry> satCatalog = [];
     private bool satCatalogLoading = false;
     private string satFilter = "";
 
-    private bool IsSatWatched(string name) =>
-        watchlist.Any(w => w.Equals(name, StringComparison.OrdinalIgnoreCase));
+    private bool IsSatWatched(int noradId) => watchedNoradIds.Contains(noradId);
 
-    private void ToggleSat(string name, bool add)
+    private void ToggleSat(int noradId, bool add)
     {
-        if (add && !IsSatWatched(name))
-            watchlist.Add(name);
-        else if (!add)
-            watchlist.RemoveAll(w => w.Equals(name, StringComparison.OrdinalIgnoreCase));
+        if (add) watchedNoradIds.Add(noradId);
+        else     watchedNoradIds.Remove(noradId);
     }
 
     // ── Form state ────────────────────────────────────────────────
@@ -491,7 +485,7 @@
     private string gridSquare = "";
     private int minElevation        = 10;
     private int satPassAlertMinutes = 5;
-    private List<string> watchlist = [];
+    private HashSet<int> watchedNoradIds = [];
     private List<string> newsSubreddits = [];
     private bool darkMode = true;
     private bool dailyReportEnabled = false;
@@ -525,7 +519,7 @@
         gridSquare         = s.GridSquare;
         minElevation        = s.MinSatElevation;
         satPassAlertMinutes = s.SatPassAlertMinutes;
-        watchlist          = [.. s.SatelliteWatchlist];
+        watchedNoradIds    = [.. s.WatchedNoradIds];
         newsSubreddits     = [.. s.NewsSubreddits];
         travelDestinations = [.. s.TravelDestinations];
         darkMode           = s.DarkMode;
@@ -548,12 +542,12 @@
         satCatalogLoading = true;
         try
         {
-            var names = await SatSvc.GetSatelliteNamesAsync();
-            satCatalog = names.Select(name =>
+            var sats = await SatSvc.GetSatellitesAsync();
+            satCatalog = sats.Select(s =>
             {
-                if (KnownSats.TryGetValue(name, out var info))
-                    return new SatEntry(name, info.Mode, info.Freq);
-                return new SatEntry(name, "Other", "");
+                if (KnownSats.TryGetValue(s.NoradId, out var info))
+                    return new SatEntry(s.Name, info.Mode, info.Freq, s.NoradId);
+                return new SatEntry(s.Name, "Other", "", s.NoradId);
             })
             .OrderBy(s => s.Mode == "Other" ? 1 : 0)
             .ThenBy(s => s.Mode)
@@ -562,9 +556,8 @@
         }
         catch
         {
-            // Fall back to known sats only
             satCatalog = KnownSats
-                .Select(kv => new SatEntry(kv.Key, kv.Value.Mode, kv.Value.Freq))
+                .Select(kv => new SatEntry($"NORAD {kv.Key}", kv.Value.Mode, kv.Value.Freq, kv.Key))
                 .OrderBy(s => s.Mode).ThenBy(s => s.Name).ToList();
         }
         finally
@@ -599,7 +592,7 @@
             Longitude             = lon,
             MinSatElevation       = minElevation,
             SatPassAlertMinutes   = satPassAlertMinutes,
-            SatelliteWatchlist    = watchlist,
+            WatchedNoradIds       = watchedNoradIds,
             NewsSubreddits        = newsSubreddits,
             TravelDestinations    = travelDestinations,
             DarkMode              = darkMode,
@@ -654,26 +647,32 @@
         }
     }
 
-    private static readonly string[] DefaultSatellites = ["ISS (ZARYA)", "SO-50", "AO-91", "AO-92", "RS-44"];
+    // ISS, SO-50, AO-91, IO-86, RS-44
+    private static readonly int[] DefaultNoradIds = [25544, 27607, 43017, 40931, 44909];
 
     private void OnSatellitesEnabledChanged(ChangeEventArgs e)
     {
         satellitesEnabled = (bool)(e.Value ?? false);
-        if (satellitesEnabled && watchlist.Count == 0)
-            watchlist.AddRange(DefaultSatellites);
+        if (satellitesEnabled && watchedNoradIds.Count == 0)
+            foreach (var id in DefaultNoradIds) watchedNoradIds.Add(id);
     }
 
     private void AddSat()
     {
-        var name = newSatName.Trim().ToUpperInvariant();
-        if (!string.IsNullOrEmpty(name) && !watchlist.Contains(name))
-        {
-            watchlist.Add(name);
-            newSatName = "";
-        }
+        var query = newSatName.Trim();
+        if (string.IsNullOrEmpty(query)) return;
+
+        var match = satCatalog.FirstOrDefault(s =>
+            s.Name.Equals(query, StringComparison.OrdinalIgnoreCase) ||
+            s.Name.Contains(query, StringComparison.OrdinalIgnoreCase));
+
+        if (match is null) return;
+
+        watchedNoradIds.Add(match.NoradId);
+        newSatName = "";
     }
 
-    private void RemoveSat(string sat) => watchlist.Remove(sat);
+    private void RemoveSat(int noradId) => watchedNoradIds.Remove(noradId);
 
     private void OnSatKeyUp(KeyboardEventArgs e)
     {

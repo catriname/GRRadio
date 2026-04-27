@@ -80,22 +80,22 @@ public class SatelliteService(IHttpClientFactory httpFactory)
         return parsed;
     }
 
-    public async Task<List<string>> GetSatelliteNamesAsync()
+    public async Task<List<(int NoradId, string Name)>> GetSatellitesAsync()
     {
         var tles = await GetTlesAsync();
-        return tles.Select(t => t.Name).OrderBy(n => n).ToList();
+        return tles.Select(t => (t.NoradId, t.Name)).OrderBy(t => t.Name).ToList();
     }
 
     // ── Pass Prediction ───────────────────────────────────────────────────────
 
     public async Task<List<SatellitePass>> GetPassesAsync(
-        List<string> watchlist,
+        HashSet<int> noradIds,
         double lat, double lon, double altKm,
         int minElevDeg,
         int hoursAhead = 72,
         bool forceRefresh = false)
     {
-        var cacheKey = $"{string.Join(",", watchlist)}|{lat:F4}|{lon:F4}|{minElevDeg}|{hoursAhead}";
+        var cacheKey = $"{string.Join(",", noradIds.OrderBy(id => id))}|{lat:F4}|{lon:F4}|{minElevDeg}|{hoursAhead}";
         if (!forceRefresh && _passCache is not null && _passCacheKey == cacheKey
             && (DateTime.UtcNow - _passFetchedAt).TotalHours < 1)
             return _passCache;
@@ -104,14 +104,7 @@ public class SatelliteService(IHttpClientFactory httpFactory)
         var sstvStatus = await GetSstvStatusAsync();
         var passes = new List<SatellitePass>();
 
-        var watchSet = watchlist
-            .Select(w => w.Trim().ToUpperInvariant())
-            .ToHashSet();
-
-        var candidates = tles.Where(t =>
-            watchSet.Contains(t.Name.ToUpperInvariant()) ||
-            watchlist.Any(w => t.Name.ToUpperInvariant().Contains(w.ToUpperInvariant()))
-        ).ToList();
+        var candidates = tles.Where(t => noradIds.Contains(t.NoradId)).ToList();
 
         var startTime = DateTime.UtcNow;
         var endTime = startTime.AddHours(hoursAhead);
@@ -197,6 +190,7 @@ public class SatelliteService(IHttpClientFactory httpFactory)
 
                     passes.Add(new SatellitePass
                     {
+                        NoradId       = tle.NoradId,
                         SatelliteName = tle.Name,
                         AosTime       = DateTime.SpecifyKind(aosTime.Value, DateTimeKind.Utc),
                         TcaTime       = DateTime.SpecifyKind(maxElTime,     DateTimeKind.Utc),

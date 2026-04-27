@@ -16,7 +16,7 @@ public class SatPassAlertService(SettingsService settings)
     public SatAlertState GetState(SatellitePass pass)
     {
         var s = settings.Load();
-        if (s.AlertedSatellites.Contains(pass.SatelliteName)) return SatAlertState.AllPasses;
+        if (s.AlertedSatellites.Contains(pass.NoradId)) return SatAlertState.AllPasses;
         if (s.AlertedPassIds.Contains(pass.PassId))           return SatAlertState.SinglePass;
         return SatAlertState.None;
     }
@@ -39,8 +39,8 @@ public class SatPassAlertService(SettingsService settings)
                 s.AlertedPassIds.Remove(pass.PassId);
                 await CancelAsync(pass.NotificationId);
 
-                s.AlertedSatellites.Add(pass.SatelliteName);
-                foreach (var p in UpcomingFor(allPasses, pass.SatelliteName))
+                s.AlertedSatellites.Add(pass.NoradId);
+                foreach (var p in UpcomingFor(allPasses, pass.NoradId))
                 {
                     s.AlertedPassIds.Add(p.PassId);
                     await ScheduleAsync(p, mins);
@@ -49,8 +49,8 @@ public class SatPassAlertService(SettingsService settings)
 
             case SatAlertState.AllPasses:
                 // Remove all alerts for this satellite
-                s.AlertedSatellites.Remove(pass.SatelliteName);
-                foreach (var p in allPasses.Where(p => p.SatelliteName == pass.SatelliteName))
+                s.AlertedSatellites.Remove(pass.NoradId);
+                foreach (var p in allPasses.Where(p => p.NoradId == pass.NoradId))
                 {
                     if (s.AlertedPassIds.Remove(p.PassId))
                         await CancelAsync(p.NotificationId);
@@ -73,8 +73,8 @@ public class SatPassAlertService(SettingsService settings)
 
     // ── Internals ─────────────────────────────────────────────────
 
-    private static IEnumerable<SatellitePass> UpcomingFor(IList<SatellitePass> passes, string name) =>
-        passes.Where(p => p.SatelliteName == name && p.IsUpcoming);
+    private static IEnumerable<SatellitePass> UpcomingFor(IList<SatellitePass> passes, int noradId) =>
+        passes.Where(p => p.NoradId == noradId && p.IsUpcoming);
 
     private static async Task ScheduleAsync(SatellitePass pass, int minutesBefore)
     {

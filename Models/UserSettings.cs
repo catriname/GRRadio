@@ -9,8 +9,8 @@ public class UserSettings
     public int MinSatElevation     { get; set; } = 10;
     public int SatPassAlertMinutes { get; set; } = 5;
     public HashSet<string> AlertedPassIds    { get; set; } = [];  // single-pass alerts
-    public HashSet<string> AlertedSatellites { get; set; } = [];  // all-passes alerts
-    public List<string> SatelliteWatchlist { get; set; } = [];
+    public HashSet<int> AlertedSatellites { get; set; } = [];  // all-passes alerts (keyed by NORAD ID)
+    public HashSet<int> WatchedNoradIds { get; set; } = [];
     public List<string> NewsSubreddits { get; set; } = ["hamradio", "amateurradio"];
     public bool AlertsEnabled { get; set; } = true;
     public bool DarkMode { get; set; } = true;

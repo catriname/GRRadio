@@ -9,6 +9,7 @@ public class TleEntry
 
 public class SatellitePass
 {
+    public int    NoradId       { get; set; }
     public string SatelliteName { get; set; } = string.Empty;
     public DateTime AosTime { get; set; }      // Acquisition of signal
     public DateTime TcaTime { get; set; }      // Time of closest approach
@@ -57,7 +58,7 @@ public class SatellitePass
     public string AosDirection => CompassDirection(AosAzimuth);
     public string LosDirection => CompassDirection(LosAzimuth);
 
-    public string PassId => $"{SatelliteName}_{AosTime:yyyyMMddHHmm}";
+    public string PassId => $"{NoradId}_{AosTime:yyyyMMddHHmm}";
     public int NotificationId => Math.Abs(PassId.GetHashCode()) % 100_000;
 }
 
