@@ -6,6 +6,7 @@
 @inject UIStateService UiState
 @inject SatPassAlertService AlertSvc
 @inject NavigationManager Nav
+@inject IJSRuntime JS
 
 <div class="page-header">
     <button class="back-btn" @onclick='() => Nav.NavigateTo("/")'>&lsaquo; Back</button>
@@ -184,7 +185,7 @@
         {
             var (lat, lon) = SettingsService.MaidenheadToLatLon(settings.GridSquare);
 
-            var passTask  = SatService.GetPassesAsync(settings.WatchedNoradIds, lat, lon, 0, minElevDeg: 1, forceRefresh: forceRefresh);
+            var passTask  = SatService.GetPassesAsync(JS, settings.WatchedNoradIds, lat, lon, 0, minElevDeg: 1, forceRefresh: forceRefresh);
             var sstvTask  = SatService.GetSstvStatusAsync();
 
             await Task.WhenAll(passTask, sstvTask);

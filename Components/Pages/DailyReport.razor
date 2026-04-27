@@ -417,12 +417,12 @@
                     try
                     {
                         passes = await SatService.GetPassesAsync(
-                            settings.WatchedNoradIds, lat, lon,
+                            JS, settings.WatchedNoradIds, lat, lon,
                             altKm: 0, minElevDeg: settings.MinSatElevation, hoursAhead: 24);
                     }
-                    catch
+                    catch (Exception ex)
                     {
-                        errorMessage = "Satellite pass data unavailable.";
+                        errorMessage = $"Satellite pass data unavailable: {ex.Message}";
                     }
                 }
             }

@@ -19,12 +19,14 @@ public class MainActivity : MauiAppCompatActivity
         {
             new()
             {
-                Id          = "sat_alerts",
+                Id          = "sat_alerts_v2",
                 Name        = "Satellite Pass Alerts",
                 Description = "Alerts before satellite passes begin",
                 Sound       = "satellite_alert",
                 Importance  = AndroidImportance.High
             }
         });
+
+        _ = LocalNotificationCenter.Current.RequestNotificationPermission();
     }
 }

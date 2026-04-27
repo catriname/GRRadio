@@ -1,4 +1,5 @@
 using GRRadio.Models;
+using Microsoft.JSInterop;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
@@ -16,7 +17,7 @@ public class SatelliteService(IHttpClientFactory httpFactory)
     private DateTime _passFetchedAt = DateTime.MinValue;
     private string _passCacheKey = string.Empty;
 
-    private const string AmsatTleUrl   = "https://www.amsat.org/tle/current/dailytle.txt";
+    private const string TleUrl = "http://www.csntechnologies.net/SAT/csnbare.txt";
     private const string SstvStatusUrl = "https://amsat.org/status/api/v1/sat_info.php";
 
     // ── Cache ─────────────────────────────────────────────────────────────────
@@ -48,7 +49,7 @@ public class SatelliteService(IHttpClientFactory httpFactory)
     {
         try
         {
-            var text = await Http.GetStringAsync(AmsatTleUrl);
+            var text = await Http.GetStringAsync(TleUrl);
             return ParseTleText(text);
         }
         catch
@@ -89,6 +90,7 @@ public class SatelliteService(IHttpClientFactory httpFactory)
     // ── Pass Prediction ───────────────────────────────────────────────────────
 
     public async Task<List<SatellitePass>> GetPassesAsync(
+        IJSRuntime js,
         HashSet<int> noradIds,
         double lat, double lon, double altKm,
         int minElevDeg,
@@ -100,139 +102,57 @@ public class SatelliteService(IHttpClientFactory httpFactory)
             && (DateTime.UtcNow - _passFetchedAt).TotalHours < 1)
             return _passCache;
 
-        var tles = await GetTlesAsync();
+        var tles       = await GetTlesAsync();
         var sstvStatus = await GetSstvStatusAsync();
-        var passes = new List<SatellitePass>();
 
-        var candidates = tles.Where(t => noradIds.Contains(t.NoradId)).ToList();
+        var candidates = tles
+            .Where(t => noradIds.Contains(t.NoradId))
+            .Select(t => new { t.NoradId, satelliteName = t.Name, t.Line1, t.Line2 })
+            .ToArray();
 
-        var startTime = DateTime.UtcNow;
-        var endTime = startTime.AddHours(hoursAhead);
+        var startMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var endMs   = DateTimeOffset.UtcNow.AddHours(hoursAhead).ToUnixTimeMilliseconds();
 
-        foreach (var tle in candidates)
+        var jsPasses = await js.InvokeAsync<List<JsPass>>(
+            "predictPasses", candidates, lat, lon, altKm, startMs, endMs, minElevDeg);
+
+        var passes = jsPasses.Select(p =>
         {
-            var satPasses = PredictPasses(tle, lat, lon, altKm, minElevDeg, startTime, endTime);
-
-            // Annotate SSTV status
             var sstv = sstvStatus.FirstOrDefault(s =>
-                tle.Name.Contains(s.SatelliteName, StringComparison.OrdinalIgnoreCase));
-
-            foreach (var p in satPasses)
+                p.SatelliteName.Contains(s.SatelliteName, StringComparison.OrdinalIgnoreCase));
+            return new SatellitePass
             {
-                p.IsSstv = sstv is not null;
-                p.SstvStatus = sstv?.Status;
-            }
+                NoradId       = p.NoradId,
+                SatelliteName = p.SatelliteName,
+                AosTime       = DateTimeOffset.FromUnixTimeMilliseconds(p.AosTime).UtcDateTime,
+                TcaTime       = DateTimeOffset.FromUnixTimeMilliseconds(p.TcaTime).UtcDateTime,
+                LosTime       = DateTimeOffset.FromUnixTimeMilliseconds(p.LosTime).UtcDateTime,
+                MaxElevation  = p.MaxElevation,
+                AosAzimuth    = p.AosAzimuth,
+                TcaAzimuth    = p.TcaAzimuth,
+                LosAzimuth    = p.LosAzimuth,
+                IsSstv        = sstv is not null,
+                SstvStatus    = sstv?.Status
+            };
+        }).ToList();
 
-            passes.AddRange(satPasses);
-        }
-
-        _passCache     = [.. passes.OrderBy(p => p.AosTime)];
+        _passCache     = passes;
         _passFetchedAt = DateTime.UtcNow;
         _passCacheKey  = cacheKey;
         return _passCache;
     }
 
-    private static List<SatellitePass> PredictPasses(
-        TleParsed tle, double lat, double lon, double altKm,
-        int minElevDeg, DateTime start, DateTime end)
+    private sealed class JsPass
     {
-        var passes = new List<SatellitePass>();
-
-        // Step 1: coarse scan every 15 seconds to find rises above horizon
-        var step = TimeSpan.FromSeconds(15);
-        double prevEl = -90;
-        bool inPass = false;
-        DateTime? aosTime = null;
-        double maxEl = 0;
-        DateTime maxElTime = start;
-        double aosAz = 0;
-
-        var t = start;
-        while (t < end)
-        {
-            var eci = Sgp4.Propagate(tle, t);
-            if (eci is null) { t += step; continue; }
-
-            var (az, el, _) = Sgp4.GetLookAngles(eci, lat, lon, altKm, t);
-
-            if (!inPass && el > 0)
-            {
-                // Refine AOS time (binary search between t-step and t)
-                aosTime = RefineEvent(tle, lat, lon, altKm, t - step, t, true);
-                inPass = true;
-                aosAz = az;
-                maxEl = el;
-                maxElTime = t;
-            }
-            else if (inPass && el > maxEl)
-            {
-                maxEl = el;
-                maxElTime = t;
-            }
-            else if (inPass && el < 0)
-            {
-                // Refine LOS time
-                var losTime = RefineEvent(tle, lat, lon, altKm, t - step, t, false);
-
-                if (maxEl >= minElevDeg && aosTime.HasValue)
-                {
-                    // Get LOS azimuth
-                    var losEci = Sgp4.Propagate(tle, losTime);
-                    var (losAz, _, __) = losEci is not null
-                        ? Sgp4.GetLookAngles(losEci, lat, lon, altKm, losTime)
-                        : (0, 0, 0);
-
-                    // Get TCA azimuth
-                    var tcaEci = Sgp4.Propagate(tle, maxElTime);
-                    var (tcaAz, _, ___) = tcaEci is not null
-                        ? Sgp4.GetLookAngles(tcaEci, lat, lon, altKm, maxElTime)
-                        : (0, 0, 0);
-
-                    passes.Add(new SatellitePass
-                    {
-                        NoradId       = tle.NoradId,
-                        SatelliteName = tle.Name,
-                        AosTime       = DateTime.SpecifyKind(aosTime.Value, DateTimeKind.Utc),
-                        TcaTime       = DateTime.SpecifyKind(maxElTime,     DateTimeKind.Utc),
-                        LosTime       = DateTime.SpecifyKind(losTime,       DateTimeKind.Utc),
-                        MaxElevation  = Math.Round(maxEl, 1),
-                        AosAzimuth    = aosAz,
-                        TcaAzimuth    = tcaAz,
-                        LosAzimuth    = losAz
-                    });
-                }
-
-                inPass = false;
-                maxEl = 0;
-                aosTime = null;
-            }
-
-            prevEl = el;
-            t += step;
-        }
-
-        return passes;
-    }
-
-    private static DateTime RefineEvent(
-        TleParsed tle, double lat, double lon, double altKm,
-        DateTime t1, DateTime t2, bool risingEdge)
-    {
-        for (int i = 0; i < 8; i++)
-        {
-            var mid = t1 + (t2 - t1) / 2;
-            var eci = Sgp4.Propagate(tle, mid);
-            if (eci is null) return mid;
-
-            var (_, el, _) = Sgp4.GetLookAngles(eci, lat, lon, altKm, mid);
-            bool aboveHorizon = el > 0;
-
-            if (risingEdge)
-                if (aboveHorizon) t2 = mid; else t1 = mid;
-            else
-                if (aboveHorizon) t1 = mid; else t2 = mid;
-        }
-        return t1 + (t2 - t1) / 2;
+        public int    NoradId       { get; set; }
+        public string SatelliteName { get; set; } = "";
+        public long   AosTime       { get; set; }
+        public long   TcaTime       { get; set; }
+        public long   LosTime       { get; set; }
+        public double MaxElevation  { get; set; }
+        public double AosAzimuth    { get; set; }
+        public double TcaAzimuth    { get; set; }
+        public double LosAzimuth    { get; set; }
     }
 
     // ── SSTV Status ───────────────────────────────────────────────────────────

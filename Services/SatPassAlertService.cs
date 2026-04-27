@@ -8,7 +8,7 @@ public enum SatAlertState { None, SinglePass, AllPasses }
 
 public class SatPassAlertService(SettingsService settings)
 {
-    private const string ChannelId = "sat_alerts";
+    private const string ChannelId = "sat_alerts_v2";
     private const string SoundName = "satellite_alert";
 
     // ── Public API ────────────────────────────────────────────────
